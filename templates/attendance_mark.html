@@ -23,7 +23,15 @@
       </div>
     </div>
     {% if not employees %}
-    <p class="field__hint">Сначала добавьте хотя бы одного сотрудника в разделе «Сотрудники».</p>
+    <p class="field__hint">
+      {% if has_any_employee %}
+        Пока нет активированных сотрудников — сначала пригласите и активируйте хотя бы одного
+        в разделе <a href="/vhr/admin/users">Настройки → Пользователи</a>.
+      {% else %}
+        Сначала добавьте сотрудника в разделе «Кадры → Сотрудники», затем пригласите его
+        в <a href="/vhr/admin/users">Настройки → Пользователи</a>.
+      {% endif %}
+    </p>
     {% endif %}
     <button class="btn btn--primary" type="submit" data-tour="add" {{ 'disabled' if not employees else '' }}>Отметиться</button>
   </form>

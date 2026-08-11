@@ -103,11 +103,17 @@ def log_event(request: Request, type_: str, meta: dict | None = None):
 
 
 def base_ctx(request: Request, page_title: str):
+    current_section = None
+    for section in MENU:
+        for path, _, _ in section["links"]:
+            if path == request.url.path:
+                current_section = section["label"]
     return {
         "request": request,
         "page_title": page_title,
         "menu": MENU,
         "current_path": request.url.path,
+        "current_section": current_section,
         "org_id": request.state.org.id,
     }
 
@@ -385,6 +391,57 @@ def employee_delete(request: Request, employee_id: str):
 
 
 # ============================================================
+# Пользователи (Настройки → Администрирование → Пользователи) — инвайт
+#
+# В реальном Verifix это отдельная сущность (системный доступ), но для
+# мока привязываем инвайт прямо к записи сотрудника — иначе пришлось бы
+# вводить полноценную модель User/Employee связи, а для двух наших JTBD
+# важна только связка "у сотрудника есть активированное приложение".
+# ============================================================
+
+@app.get("/vhr/admin/users")
+def users_list(request: Request):
+    db = request.state.db
+    org = request.state.org
+    employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    log_event(request, "page_view")
+    ctx = base_ctx(request, "Пользователи")
+    ctx.update(employees=employees)
+    return templates.TemplateResponse(request, "users_list.html", ctx)
+
+
+@app.post("/vhr/admin/users/{employee_id}/invite")
+def users_invite(request: Request, employee_id: str, phone: str = Form(...)):
+    db = request.state.db
+    org = request.state.org
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    if emp:
+        emp.phone = phone.strip()
+        emp.invite_status = "invited"
+        emp.invited_at = datetime.now(timezone.utc)
+        db.commit()
+        log_event(request, "invite_sent", {"employee_id": employee_id})
+    return RedirectResponse(url="/vhr/admin/users", status_code=303)
+
+
+@app.post("/vhr/admin/users/{employee_id}/simulate_activate")
+def users_simulate_activate(request: Request, employee_id: str):
+    """Кнопка-эмулятор: 'сотрудник поставил Verifix ID и принял инвайт'.
+    Настоящий мобильный флоу (SMS → установка → deep link) — открытый
+    вопрос по дизайну, см. обсуждение с Vladimir; для мока схлопываем
+    в один клик, чтобы можно было дойти до JTBD-1/2."""
+    db = request.state.db
+    org = request.state.org
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    if emp and emp.invite_status == "invited":
+        emp.invite_status = "active"
+        emp.activated_at = datetime.now(timezone.utc)
+        db.commit()
+        log_event(request, "invite_activated", {"employee_id": employee_id})
+    return RedirectResponse(url="/vhr/admin/users", status_code=303)
+
+
+# ============================================================
 # Отметки (htt) — JTBD №1
 # ============================================================
 
@@ -392,7 +449,8 @@ def employee_delete(request: Request, employee_id: str):
 def attendance_mark_page(request: Request):
     db = request.state.db
     org = request.state.org
-    employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    employees = db.query(Employee).filter_by(organization_id=org.id, invite_status="active").all()
+    all_employees_count = db.query(Employee).filter_by(organization_id=org.id).count()
     events = (
         db.query(AttendanceEvent)
         .filter_by(organization_id=org.id)
@@ -402,7 +460,7 @@ def attendance_mark_page(request: Request):
     )
     log_event(request, "page_view")
     ctx = base_ctx(request, "Отметки")
-    ctx.update(employees=employees, events=events)
+    ctx.update(employees=employees, events=events, has_any_employee=all_employees_count > 0)
     return templates.TemplateResponse(request, "attendance_mark.html", ctx)
 
 

@@ -11,32 +11,31 @@
   <header class="topbar">
     <div class="topbar__brand">
       <span class="topbar__logo">V</span>
-      <span class="topbar__name">Verifix<span class="topbar__accent">HRM</span></span>
-      <span class="topbar__mock-badge" title="Это учебная копия, не настоящий Verifix">MOCK-STAND</span>
+      <span class="topbar__name">VERIFIX</span>
     </div>
-    <div class="topbar__right">
-      <span class="topbar__org">Песочница: {{ org_id[:8] }}…</span>
-    </div>
-  </header>
 
-  <div class="shell">
-    <nav class="sidenav">
+    <nav class="topnav">
       {% for section in menu %}
-        <div class="sidenav__section">
-          <div class="sidenav__section-title">{{ section.label }}</div>
+      <div class="topnav__item {{ 'is-active-section' if section.label == current_section }}">
+        <span class="topnav__label">{{ section.label }}</span>
+        <div class="topnav__dropdown">
           {% for path, label, functional in section.links %}
-            <a href="{{ path }}" class="sidenav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">
-              {{ label }}
-            </a>
+          <a href="{{ path }}" class="topnav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">{{ label }}</a>
           {% endfor %}
         </div>
+      </div>
       {% endfor %}
     </nav>
 
-    <main class="content">
-      {% block content %}{% endblock %}
-    </main>
-  </div>
+    <div class="topbar__right">
+      <span class="topbar__mock-badge" title="Это учебная копия, не настоящий Verifix">MOCK</span>
+      <span class="topbar__org">{{ org_id[:8] }}…</span>
+    </div>
+  </header>
+
+  <main class="content-full">
+    {% block content %}{% endblock %}
+  </main>
 
   <script src="/static/tour/verifix-tour.js"></script>
   <script src="/static/tour/steps.js"></script>
@@ -46,7 +45,7 @@
       doneText: 'Оба JTBD пройдены — структура готова и первый отчёт по часам построен.',
       intro: {
         title: 'Добро пожаловать в песочницу Verifix',
-        text: 'Это учебная копия интерфейса — здесь можно потренироваться в настройке без риска сломать боевые данные. Проведём по 7 шагам: от подразделений до первого отчёта по отработанным часам.',
+        text: 'Это учебная копия интерфейса — здесь можно потренироваться в настройке без риска сломать боевые данные. Проведём по шагам: от подразделений до первого отчёта по отработанным часам.',
         cta: 'Начать настройку',
       },
     });

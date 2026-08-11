@@ -107,6 +107,15 @@ class Employee(Base):
     position_id = Column(String, ForeignKey("positions.id"), nullable=True)
     schedule_id = Column(String, ForeignKey("schedules.id"), nullable=True)
     location_id = Column(String, ForeignKey("locations.id"), nullable=True)
+
+    # Инвайт в приложение (по мотивам реального экрана Настройки → Пользователи →
+    # тумблер "Телефон + invite"): none → invited (эмулируем отправку SMS) →
+    # active (эмулируем, что сотрудник поставил приложение и принял инвайт).
+    phone = Column(String, nullable=True)
+    invite_status = Column(String, default="none")  # none | invited | active
+    invited_at = Column(DateTime(timezone=True), nullable=True)
+    activated_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     organization = relationship("Organization", back_populates="employees")

@@ -10,6 +10,9 @@
   --primary-hover: #1d4ed8;
   --primary-soft: #eff6ff;
 
+  --nav-dark: #10192b;
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.18);
+
   --radius: 10px;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
@@ -23,50 +26,53 @@ body {
 }
 
 .topbar {
-  height: 60px;
+  height: 56px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--nav-dark);
+  gap: 24px;
 }
-.topbar__brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.topbar__brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #fff; letter-spacing: 0.02em; }
 .topbar__logo {
-  width: 28px; height: 28px; border-radius: 8px; background: var(--primary);
-  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px;
+  width: 26px; height: 26px; border-radius: 6px; background: var(--primary);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px;
 }
-.topbar__accent { color: var(--primary); }
 .topbar__mock-badge {
-  margin-left: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
-  background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  background: #fef3c7; color: #92400e; padding: 3px 7px; border-radius: 999px;
 }
-.topbar__org { font-size: 13px; color: var(--text-muted); }
+.topbar__right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.topbar__org { font-size: 12px; color: #94a3b8; }
 
-.shell { display: flex; min-height: calc(100vh - 60px); }
+.topnav { display: flex; align-items: center; gap: 4px; height: 100%; }
+.topnav__item {
+  position: relative; height: 100%; display: flex; align-items: center;
+  padding: 0 12px; cursor: pointer;
+}
+.topnav__item.is-active-section { background: rgba(255,255,255,0.06); }
+.topnav__label { color: #cbd5e1; font-size: 13.5px; font-weight: 500; }
+.topnav__item:hover .topnav__label { color: #fff; }
+.topnav__item.is-active-section .topnav__label { color: #fff; font-weight: 600; }
 
-.sidenav {
-  width: 240px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 16px 8px;
-  overflow-y: auto;
+.topnav__dropdown {
+  display: none;
+  position: absolute; top: 100%; left: 0; min-width: 220px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow-lg); padding: 6px; z-index: 50;
 }
-.sidenav__section { margin-bottom: 18px; }
-.sidenav__section-title {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--text-muted); padding: 0 10px 6px;
+.topnav__item:hover .topnav__dropdown { display: block; }
+.topnav__link {
+  display: block; padding: 8px 12px; border-radius: 6px; font-size: 13.5px;
+  color: var(--text); text-decoration: none;
 }
-.sidenav__link {
-  display: block; padding: 7px 10px; border-radius: 8px; font-size: 14px;
-  color: var(--text); text-decoration: none; margin-bottom: 1px;
-}
-.sidenav__link:hover { background: var(--surface-2); }
-.sidenav__link.is-active { background: var(--primary-soft); color: var(--primary-hover); font-weight: 600; }
-.sidenav__link.is-stub { color: var(--text-muted); }
-.sidenav__link.is-stub::after { content: " ·"; }
+.topnav__link:hover { background: var(--surface-2); }
+.topnav__link.is-active { background: var(--primary-soft); color: var(--primary-hover); font-weight: 600; }
+.topnav__link.is-stub { color: var(--text-muted); }
+.topnav__link.is-stub::after { content: " ·"; }
 
-.content { flex: 1; padding: 28px 36px; max-width: 900px; }
+.content-full { padding: 28px 36px; }
+.page { max-width: 900px; margin: 0 auto; }
 
 .page__title { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
 .page__subtitle { color: var(--text-muted); margin: 0 0 20px; font-size: 14px; }
@@ -138,3 +144,9 @@ body {
   display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 8px;
   border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; user-select: none;
 }
+
+/* Статусы приглашения (Пользователи) */
+.status-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.status-pill--muted { background: var(--surface-2); color: var(--text-muted); }
+.status-pill--warn { background: #fef3c7; color: #92400e; }
+.status-pill--ok { background: #d1fae5; color: #065f46; }

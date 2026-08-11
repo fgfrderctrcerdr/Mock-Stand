@@ -1,70 +1,48 @@
 """
-Конфиг левого меню — сознательно похож по структуре на реальные модули
-Verifix (см. PROJECT_CONTEXT.md §6: hrm/href/hpd/htt/hsm/hpr/hide).
+Конфиг верхнего меню — по СКРИНШОТАМ реального Verifix (не по внутренним
+кодам PL/SQL-модулей, как в первой версии — это была ошибка: реальные
+разделы верхнего меню называются по бизнес-функциям, а не hrm/htt/href).
 
-Каждый пункт: (path, label, functional). functional=True — реальная
-страница с БД (регистрируется явно в main.py). functional=False —
-заглушка ("в разработке"), регистрируется автоматически в main.py по
-этому списку — так пункты меню и реальные роуты не расходятся.
+Реальная верхняя навигация: Кадры, Посещения, Эффективность, Зарплата,
+Развитие, Отчётность, Рекрутинг, Настройки.
 
-Держим функциональные пути == путям в static/tour/steps.js, чтобы тур
-(модель A) работал на этих страницах без доработки селекторов.
+functional=True — реальная страница с БД. functional=False — заглушка.
 """
 
 MENU = [
     {
-        "module": "hrm",
-        "label": "Оргструктура (hrm)",
-        "links": [
-            ("/vhr/hrm/division_list", "Подразделения", True),
-            ("/vhr/hrm/job_list", "Должности", True),
-            ("/vhr/hrm/rank_list", "Ставки и разряды", False),
-            ("/vhr/hrm/staff_units", "Штатные слоты", False),
-            ("/vhr/hrm/org_chart", "Организационная схема", False),
-        ],
-    },
-    {
-        "module": "href",
-        "label": "Персонал (href)",
+        "key": "kadry",
+        "label": "Кадры",
         "links": [
             ("/vhr/href/employee", "Сотрудники", True),
-            ("/vhr/href/employee_documents", "Документы сотрудников", False),
-            ("/vhr/href/employee_profile", "Профили", False),
-        ],
-    },
-    {
-        "module": "hpd",
-        "label": "Кадровые операции (hpd)",
-        "links": [
             ("/vhr/hpd/hiring", "Приём на работу", False),
             ("/vhr/hpd/transfer", "Переводы", False),
             ("/vhr/hpd/dismissal", "Увольнения", False),
-            ("/vhr/hpd/schedule_change", "Изменение графика/ставки", False),
+            ("/vhr/href/employee_documents", "Документы сотрудников", False),
         ],
     },
     {
-        "module": "htt",
-        "label": "Учёт времени (htt)",
+        "key": "poseshcheniya",
+        "label": "Посещения",
         "links": [
             ("/vhr/htt/schedule_list", "Графики работы", True),
             ("/vhr/htt/location_list", "Локации", True),
-            ("/vhr/htt/attendance_mark", "Отметки (симуляция)", True),
-            ("/vhr/htt/timesheet_report", "Отчёт по часам", True),
+            ("/vhr/htt/attendance_mark", "Отметки", True),
             ("/vhr/htt/calendar", "Производственный календарь", False),
             ("/vhr/htt/tracks", "Треки перемещений", False),
         ],
     },
     {
-        "module": "hsm",
-        "label": "Сменное планирование (hsm)",
+        "key": "effektivnost",
+        "label": "Эффективность",
         "links": [
-            ("/vhr/hsm/shifts", "Смены", False),
-            ("/vhr/hsm/shift_groups", "Группы смен", False),
+            ("/vhr/hsm/kpi", "KPI", False),
+            ("/vhr/hsm/reviews", "Оценки", False),
         ],
     },
     {
-        "module": "hpr",
-        "label": "Расчёт зарплаты (hpr)",
+        "key": "zarplata",
+        "label": "Зарплата",
         "links": [
             ("/vhr/hpr/charges", "Начисления", False),
             ("/vhr/hpr/statements", "Ведомости", False),
@@ -72,10 +50,40 @@ MENU = [
         ],
     },
     {
-        "module": "hide",
-        "label": "Формулы (hide)",
+        "key": "razvitie",
+        "label": "Развитие",
         "links": [
-            ("/vhr/hide/formula_builder", "Конструктор формул", False),
+            ("/vhr/hsm/training", "Обучение", False),
+            ("/vhr/hsm/growth_plans", "Планы развития", False),
+        ],
+    },
+    {
+        "key": "otchetnost",
+        "label": "Отчётность",
+        "links": [
+            ("/vhr/htt/timesheet_report", "Отчёт по часам", True),
+            ("/vhr/hpr/payroll_report", "Отчёт по зарплате", False),
+        ],
+    },
+    {
+        "key": "rekruting",
+        "label": "Рекрутинг",
+        "links": [
+            ("/vhr/hpd/vacancies", "Вакансии", False),
+            ("/vhr/hpd/candidates", "Кандидаты", False),
+        ],
+    },
+    {
+        "key": "nastroyki",
+        "label": "Настройки",
+        "links": [
+            ("/vhr/hrm/division_list", "Подразделения", True),
+            ("/vhr/hrm/job_list", "Должности", True),
+            ("/vhr/admin/users", "Пользователи", True),
+            ("/vhr/admin/roles", "Роли", False),
+            ("/vhr/admin/dictionaries", "Справочники", False),
+            ("/vhr/admin/regions", "Регионы", False),
+            ("/vhr/admin/banks", "Банки", False),
         ],
     },
 ]
