@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Должности</h1>
+  <p class="page__subtitle">Кем работает сотрудник (Официант, Повар, Бариста…).</p>
+
+  <table class="datatable">
+    <thead><tr><th>Название</th><th></th></tr></thead>
+    <tbody>
+      {% for p in positions %}
+      <tr data-row-id="{{ p.id }}">
+        <td>{{ p.name }}</td>
+        <td>
+          <form method="post" action="/vhr/hrm/job_list/{{ p.id }}/delete" style="display:inline">
+            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2" class="datatable__empty">Пока не добавлено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/vhr/hrm/job_list/create" class="entity-form">
+    <div class="field">
+      <label>Название должности</label>
+      <input type="text" name="name" required placeholder="Официант" />
+    </div>
+    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить должность</button>
+  </form>
+</div>
+{% endblock %}

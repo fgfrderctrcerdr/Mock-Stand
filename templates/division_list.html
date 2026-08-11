@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Подразделения</h1>
+  <p class="page__subtitle">Оргструктура — к подразделениям привязываются сотрудники.</p>
+
+  <table class="datatable">
+    <thead><tr><th>Название</th><th>Родитель</th><th></th></tr></thead>
+    <tbody>
+      {% for d in divisions %}
+      <tr data-row-id="{{ d.id }}">
+        <td>{{ d.name }}</td>
+        <td>{{ parent_name(d.parent_id) }}</td>
+        <td>
+          <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline">
+            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="datatable__empty">Пока не добавлено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
+    <div class="field">
+      <label>Название подразделения</label>
+      <input type="text" name="name" required placeholder="Кухня" />
+    </div>
+    <div class="field">
+      <label>Родительское подразделение (опционально)</label>
+      <select name="parent_id">
+        <option value="">— верхний уровень —</option>
+        {% for d in divisions %}
+        <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить подразделение</button>
+  </form>
+</div>
+{% endblock %}

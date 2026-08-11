@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Отметки (симуляция)</h1>
+  <p class="page__subtitle">В реальном Verifix сотрудник отмечается в мобильном приложении по геозоне/QR.
+    Здесь эта отметка эмулируется вручную — это и есть завершение первого JTBD.</p>
+
+  <form method="post" action="/vhr/htt/attendance_mark/create" class="entity-form">
+    <div class="field-row">
+      <div class="field">
+        <label>Сотрудник</label>
+        <select name="employee_id" required>
+          <option value="">— выберите —</option>
+          {% for e in employees %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Тип отметки</label>
+        <select name="kind">
+          <option value="in">Приход</option>
+          <option value="out">Уход</option>
+        </select>
+      </div>
+    </div>
+    {% if not employees %}
+    <p class="field__hint">Сначала добавьте хотя бы одного сотрудника в разделе «Сотрудники».</p>
+    {% endif %}
+    <button class="btn btn--primary" type="submit" data-tour="add" {{ 'disabled' if not employees else '' }}>Отметиться</button>
+  </form>
+
+  <h2 class="page__section-title">Последние отметки</h2>
+  <table class="datatable">
+    <thead><tr><th>Сотрудник</th><th>Тип</th><th>Время</th></tr></thead>
+    <tbody>
+      {% for ev in events %}
+      <tr data-row-id="{{ ev.id }}">
+        <td>{{ name_by_id(employees, ev.employee_id) }}</td>
+        <td>{{ 'Приход' if ev.kind == 'in' else 'Уход' }}</td>
+        <td>{{ ev.marked_at.strftime('%d.%m.%Y %H:%M') }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="datatable__empty">Отметок пока нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

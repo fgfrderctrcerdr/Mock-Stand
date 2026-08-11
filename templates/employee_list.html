@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Сотрудники</h1>
+  <p class="page__subtitle">Свяжите сотрудника с подразделением, должностью, графиком и локацией — это и есть JTBD №1.</p>
+
+  <table class="datatable">
+    <thead><tr><th>ФИО</th><th>Подразделение</th><th>Должность</th><th>График</th><th>Локация</th><th></th></tr></thead>
+    <tbody>
+      {% for e in employees %}
+      <tr data-row-id="{{ e.id }}">
+        <td>{{ e.full_name }}</td>
+        <td>{{ name_by_id(divisions, e.division_id) }}</td>
+        <td>{{ name_by_id(positions, e.position_id) }}</td>
+        <td>{{ name_by_id(schedules, e.schedule_id) }}</td>
+        <td>{{ name_by_id(locations, e.location_id) }}</td>
+        <td>
+          <form method="post" action="/vhr/href/employee/{{ e.id }}/delete" style="display:inline">
+            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="datatable__empty">Пока не добавлено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/vhr/href/employee/create" class="entity-form">
+    <div class="field"><label>ФИО</label><input type="text" name="full_name" required placeholder="Иванов Иван" /></div>
+    <div class="field-row">
+      <div class="field"><label>Подразделение</label>
+        <select name="division_id"><option value="">—</option>{% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Должность</label>
+        <select name="position_id"><option value="">—</option>{% for p in positions %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>График</label>
+        <select name="schedule_id"><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>Локация</label>
+        <select name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Графики работы</h1>
+  <p class="page__subtitle">Правила рабочего времени, которые назначаются сотрудникам.</p>
+
+  <table class="datatable">
+    <thead><tr><th>Название</th><th>Вид</th><th>Начало</th><th>Конец</th><th></th></tr></thead>
+    <tbody>
+      {% for s in schedules %}
+      <tr data-row-id="{{ s.id }}">
+        <td>{{ s.name }}</td>
+        <td>{{ {'regular':'Обычный','hourly':'Почасовой','shift':'Сменный'}[s.kind] }}</td>
+        <td>{{ s.start_time or '—' }}</td>
+        <td>{{ s.end_time or '—' }}</td>
+        <td>
+          <form method="post" action="/vhr/htt/schedule_list/{{ s.id }}/delete" style="display:inline">
+            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="datatable__empty">Пока не добавлено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/vhr/htt/schedule_list/create" class="entity-form">
+    <div class="field"><label>Название графика</label><input type="text" name="name" required placeholder="Дневная смена 9–18" /></div>
+    <div class="field-row">
+      <div class="field">
+        <label>Вид</label>
+        <select name="kind">
+          <option value="regular">Обычный</option>
+          <option value="hourly">Почасовой</option>
+          <option value="shift">Сменный</option>
+        </select>
+      </div>
+      <div class="field"><label>Начало</label><input type="time" name="start_time" value="09:00" /></div>
+      <div class="field"><label>Конец</label><input type="time" name="end_time" value="18:00" /></div>
+    </div>
+    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить график</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} — Verifix Mock-Stand</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/tour/verifix-tour.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="topbar__logo">V</span>
+      <span class="topbar__name">Verifix<span class="topbar__accent">HRM</span></span>
+      <span class="topbar__mock-badge" title="Это учебная копия, не настоящий Verifix">MOCK-STAND</span>
+    </div>
+    <div class="topbar__right">
+      <span class="topbar__org">Песочница: {{ org_id[:8] }}…</span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="sidenav">
+      {% for section in menu %}
+        <div class="sidenav__section">
+          <div class="sidenav__section-title">{{ section.label }}</div>
+          {% for path, label, functional in section.links %}
+            <a href="{{ path }}" class="sidenav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">
+              {{ label }}
+            </a>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </nav>
+
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="/static/tour/verifix-tour.js"></script>
+  <script src="/static/tour/steps.js"></script>
+  <script>
+    VerifixTour.start(VERIFIX_TOUR_STEPS, {
+      title: 'Настройка Verifix',
+      doneText: 'Оба JTBD пройдены — структура готова и первый отчёт по часам построен.',
+    });
+  </script>
+</body>
+</html>

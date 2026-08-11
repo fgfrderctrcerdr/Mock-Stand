@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1 class="page__title">Отчёт по отработанным часам</h1>
+  <p class="page__subtitle">Считается из пар отметок «приход → уход». Это второй, финальный JTBD онбординга —
+    именно этот отчёт показывает клиенту реальную ценность системы, не просто заведённую структуру.</p>
+
+  <table class="datatable">
+    <thead><tr><th>Сотрудник</th><th>Приход</th><th>Уход</th><th>Часов</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-row-id="{{ row.id }}">
+        <td>{{ row.employee_name }}</td>
+        <td>{{ row.in_at.strftime('%d.%m.%Y %H:%M') if row.in_at else '—' }}</td>
+        <td>{{ row.out_at.strftime('%d.%m.%Y %H:%M') if row.out_at else 'ещё не отметился' }}</td>
+        <td>{{ row.hours if row.hours is not none else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="datatable__empty">Пока нет данных — сначала отметьте приход/уход в разделе «Отметки»</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

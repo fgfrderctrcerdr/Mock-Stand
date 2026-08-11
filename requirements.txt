@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+sqlalchemy>=2.0
+psycopg2-binary
