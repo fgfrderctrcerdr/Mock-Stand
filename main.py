@@ -125,6 +125,33 @@ def root():
 # Подразделения (hrm)
 # ============================================================
 
+def _ordered_divisions(divisions):
+    """DFS с сохранением глубины — для дерева с отступами (см. web_onboarding app.js)."""
+    by_parent = defaultdict(list)
+    for d in divisions:
+        by_parent[d.parent_id].append(d)
+    result = []
+
+    def walk(parent_id, depth):
+        for d in by_parent.get(parent_id, []):
+            result.append((d, depth))
+            walk(d.id, depth + 1)
+
+    walk(None, 0)
+    return result
+
+
+def _is_descendant(divisions, node_id, ancestor_id):
+    """True, если node_id находится где-то в поддереве ancestor_id (защита от циклов при DnD)."""
+    by_id = {d.id: d for d in divisions}
+    cur = by_id.get(node_id)
+    while cur and cur.parent_id:
+        if cur.parent_id == ancestor_id:
+            return True
+        cur = by_id.get(cur.parent_id)
+    return False
+
+
 @app.get("/vhr/hrm/division_list")
 def division_list(request: Request):
     db = request.state.db
@@ -132,7 +159,11 @@ def division_list(request: Request):
     divisions = db.query(Division).filter_by(organization_id=org.id).all()
     log_event(request, "page_view")
     ctx = base_ctx(request, "Подразделения")
-    ctx.update(divisions=divisions, parent_name=lambda pid: name_by_id(divisions, pid) if pid else "верхний уровень")
+    ctx.update(
+        divisions=divisions,
+        ordered=_ordered_divisions(divisions),
+        parent_name=lambda pid: name_by_id(divisions, pid) if pid else "верхний уровень",
+    )
     return templates.TemplateResponse(request, "division_list.html", ctx)
 
 
@@ -151,9 +182,32 @@ def division_create(request: Request, name: str = Form(...), parent_id: str = Fo
 def division_delete(request: Request, division_id: str):
     db = request.state.db
     org = request.state.org
-    db.query(Division).filter_by(id=division_id, organization_id=org.id).delete()
-    db.commit()
+    # Удаление с детьми → перепривязка детей вверх (как в web_onboarding QA-фиксе),
+    # иначе дети сирот остаются с parent_id, ссылающимся на удалённую запись.
+    target = db.query(Division).filter_by(id=division_id, organization_id=org.id).first()
+    if target:
+        db.query(Division).filter_by(organization_id=org.id, parent_id=division_id).update({"parent_id": target.parent_id})
+        db.delete(target)
+        db.commit()
     return RedirectResponse(url="/vhr/hrm/division_list", status_code=303)
+
+
+@app.post("/vhr/hrm/division_list/{division_id}/reparent")
+def division_reparent(request: Request, division_id: str, new_parent_id: str = Form("")):
+    """AJAX-эндпоинт для drag-and-drop дерева. Возвращает JSON, не редирект."""
+    db = request.state.db
+    org = request.state.org
+    divisions = db.query(Division).filter_by(organization_id=org.id).all()
+    new_parent_id = new_parent_id or None
+
+    if new_parent_id == division_id:
+        return {"ok": False, "error": "Нельзя сделать подразделение родителем самого себя"}
+    if new_parent_id and _is_descendant(divisions, new_parent_id, division_id):
+        return {"ok": False, "error": "Нельзя переносить подразделение в собственного потомка"}
+
+    db.query(Division).filter_by(id=division_id, organization_id=org.id).update({"parent_id": new_parent_id})
+    db.commit()
+    return {"ok": True}
 
 
 # ============================================================
@@ -207,10 +261,10 @@ def location_list(request: Request):
 
 
 @app.post("/vhr/htt/location_list/create")
-def location_create(request: Request, name: str = Form(...), lat: float = Form(...), lng: float = Form(...), accuracy: float = Form(50)):
+def location_create(request: Request, name: str = Form(...), lat: float = Form(...), lng: float = Form(...), accuracy: float = Form(50), address: str = Form("")):
     db = request.state.db
     org = request.state.org
-    l = Location(organization_id=org.id, name=name.strip(), lat=lat, lng=lng, accuracy=accuracy)
+    l = Location(organization_id=org.id, name=name.strip(), address=address, lat=lat, lng=lng, accuracy=accuracy)
     db.add(l)
     db.commit()
     log_event(request, "entity_created", {"entity": "location", "id": l.id})
@@ -242,10 +296,26 @@ def schedule_list(request: Request):
 
 
 @app.post("/vhr/htt/schedule_list/create")
-def schedule_create(request: Request, name: str = Form(...), kind: str = Form("regular"), start_time: str = Form(""), end_time: str = Form("")):
+def schedule_create(
+    request: Request,
+    name: str = Form(...),
+    kind: str = Form("regular"),
+    week_days: list[str] = Form([]),
+    start_time: str = Form(""),
+    end_time: str = Form(""),
+    norm_hours: str = Form(""),
+):
     db = request.state.db
     org = request.state.org
-    s = Schedule(organization_id=org.id, name=name.strip(), kind=kind, start_time=start_time or None, end_time=end_time or None)
+    s = Schedule(
+        organization_id=org.id,
+        name=name.strip(),
+        kind=kind,
+        week_days=[int(d) for d in week_days] if kind == "regular" else [],
+        start_time=start_time or None if kind == "regular" else None,
+        end_time=end_time or None if kind == "regular" else None,
+        norm_hours=float(norm_hours) if (kind == "hourly" and norm_hours) else None,
+    )
     db.add(s)
     db.commit()
     log_event(request, "entity_created", {"entity": "schedule", "id": s.id})

@@ -107,3 +107,34 @@ body {
 .btn--ghost { background: transparent; color: var(--text-muted); }
 .btn--ghost:hover { color: #dc2626; }
 .btn--sm { padding: 5px 10px; font-size: 12px; }
+
+/* Дерево подразделений с drag-and-drop (перенесено из web_onboarding) */
+.tree { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.tree-root-zone {
+  border: 1.5px dashed var(--border); border-radius: 8px; padding: 10px 14px;
+  color: var(--text-muted); font-size: 13px; text-align: center; transition: all 0.15s;
+}
+.tree-root-zone.drop-target { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.tree-node {
+  display: flex; align-items: center; gap: 10px; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 11px 14px;
+  cursor: grab; transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.tree-node:active { cursor: grabbing; }
+.tree-node.dragging { opacity: 0.4; }
+.tree-node.drop-target { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.25); }
+.tree-node__grip { color: #9ca3af; font-size: 15px; cursor: grab; user-select: none; }
+.tree-node__name { flex: 1; font-weight: 600; font-size: 14.5px; }
+
+/* Шаблоны графиков + выбор дней недели */
+.template-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn--tpl {
+  background: var(--surface-2); color: var(--text); border: 1.5px solid var(--border);
+  padding: 8px 14px; font-size: 13px;
+}
+.btn--tpl.is-active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-hover); }
+.weekday-picker { display: flex; gap: 6px; }
+.weekday-chip {
+  display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 8px;
+  border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; user-select: none;
+}

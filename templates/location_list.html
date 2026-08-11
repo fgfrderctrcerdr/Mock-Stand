@@ -5,12 +5,12 @@
   <p class="page__subtitle">Место, где сотрудники отмечают приход/уход (геозона).</p>
 
   <table class="datatable">
-    <thead><tr><th>Название</th><th>Координаты</th><th>Радиус зоны, м</th><th></th></tr></thead>
+    <thead><tr><th>Название</th><th>Адрес</th><th>Радиус зоны, м</th><th></th></tr></thead>
     <tbody>
       {% for l in locations %}
       <tr data-row-id="{{ l.id }}">
         <td>{{ l.name }}</td>
-        <td>{{ l.lat }}, {{ l.lng }}</td>
+        <td>{{ l.address or (l.lat|string + ', ' + l.lng|string) }}</td>
         <td>{{ l.accuracy }}</td>
         <td>
           <form method="post" action="/vhr/htt/location_list/{{ l.id }}/delete" style="display:inline">
@@ -24,15 +24,97 @@
     </tbody>
   </table>
 
-  <form method="post" action="/vhr/htt/location_list/create" class="entity-form">
+  <form method="post" action="/vhr/htt/location_list/create" class="entity-form" id="locForm">
     <div class="field"><label>Название локации</label><input type="text" name="name" required placeholder="Кафе на Мустакиллик" /></div>
-    <div class="field-row">
-      <div class="field"><label>Широта</label><input type="number" step="0.000001" name="lat" required placeholder="41.311081" /></div>
-      <div class="field"><label>Долгота</label><input type="number" step="0.000001" name="lng" required placeholder="69.240562" /></div>
-      <div class="field"><label>Радиус зоны, м</label><input type="number" name="accuracy" value="50" /></div>
+
+    <div class="field">
+      <label>Адрес</label>
+      <div class="field-row" style="align-items:flex-start">
+        <input type="text" id="locAddress" name="address" placeholder="Введите адрес и нажмите «Найти»" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;" />
+        <button type="button" id="locFind" class="btn btn--ghost" style="flex:none">Найти</button>
+      </div>
+      <p class="field__hint" id="locCoords">Координаты не выбраны — введите адрес или кликните на карте.</p>
     </div>
-    <p class="field__hint">В боевом Verifix здесь выбор на карте (Leaflet/OSM) — в моке упрощено до ручного ввода координат.</p>
+
+    <div id="locMap" style="height:320px;border-radius:10px;border:1.5px solid var(--border);margin-bottom:14px;"></div>
+
+    <input type="hidden" name="lat" id="locLat" required />
+    <input type="hidden" name="lng" id="locLng" required />
+
+    <div class="field">
+      <label>Радиус зоны, м</label>
+      <input type="number" name="accuracy" id="locAccuracy" value="50" style="max-width:200px" />
+    </div>
+
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить локацию</button>
   </form>
 </div>
+
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  var map, marker, circle;
+  var TASHKENT = [41.3111, 69.2797];
+
+  map = L.map('locMap').setView(TASHKENT, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  marker = L.marker(TASHKENT, { draggable: true }).addTo(map);
+  circle = L.circle(TASHKENT, { radius: 50, color: '#2563eb', weight: 1, fillOpacity: 0.12 }).addTo(map);
+  marker.setOpacity(0); circle.setStyle({ opacity: 0, fillOpacity: 0 });
+
+  function setPoint(lat, lng, doReverse) {
+    document.getElementById('locLat').value = lat;
+    document.getElementById('locLng').value = lng;
+    marker.setLatLng([lat, lng]).setOpacity(1);
+    circle.setLatLng([lat, lng]).setStyle({ opacity: 1, fillOpacity: 0.12 });
+    document.getElementById('locCoords').textContent = 'Координаты: ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    if (doReverse) reverseGeocode(lat, lng);
+  }
+
+  map.on('click', function (e) { setPoint(e.latlng.lat, e.latlng.lng, true); });
+  marker.on('dragend', function () { var p = marker.getLatLng(); setPoint(p.lat, p.lng, true); });
+
+  document.getElementById('locAccuracy').addEventListener('input', function () {
+    circle.setRadius(Number(this.value) || 50);
+  });
+
+  function forwardGeocode() {
+    var q = document.getElementById('locAddress').value.trim();
+    if (!q) return;
+    var btn = document.getElementById('locFind');
+    btn.disabled = true;
+    fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (arr) {
+        if (arr && arr.length) {
+          var lat = parseFloat(arr[0].lat), lng = parseFloat(arr[0].lon);
+          setPoint(lat, lng, false);
+          map.setView([lat, lng], 16);
+        } else {
+          alert('Адрес не найден — попробуйте уточнить запрос или кликните точку на карте вручную.');
+        }
+      })
+      .catch(function () { alert('Ошибка геокодинга — попробуйте позже или кликните точку на карте вручную.'); })
+      .finally(function () { btn.disabled = false; });
+  }
+
+  function reverseGeocode(lat, lng) {
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng, { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.display_name) document.getElementById('locAddress').value = j.display_name; })
+      .catch(function () {});
+  }
+
+  document.getElementById('locFind').addEventListener('click', forwardGeocode);
+  setTimeout(function () { map.invalidateSize(); }, 0);
+
+  document.getElementById('locForm').addEventListener('submit', function (e) {
+    if (!document.getElementById('locLat').value) {
+      e.preventDefault();
+      alert('Сначала выберите точку на карте или найдите адрес.');
+    }
+  });
+})();
+</script>
 {% endblock %}

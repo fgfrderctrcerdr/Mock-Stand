@@ -64,3 +64,29 @@
 .vtour-item__title { font-size: 13.5px; font-weight: 600; }
 .vtour-item__why { font-size: 12.5px; color: #6b7280; line-height: 1.4; }
 .vtour-done { padding: 12px 16px; font-size: 13.5px; color: #16a34a; font-weight: 600; border-top: 1px solid #f3f4f6; }
+
+/* Добавлено для Mock-Stand: индикатор ожидания + интро-экран */
+.vtour-waiting {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 8px 0 0;
+}
+
+.vtour-intro-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.vtour-intro-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.vtour-intro-card__title { font-size: 19px; font-weight: 700; margin-bottom: 10px; }
+.vtour-intro-card__text { font-size: 14px; color: #4b5563; line-height: 1.5; margin-bottom: 18px; }

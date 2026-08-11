@@ -157,18 +157,34 @@
 
   function showPopover(target, step, mode) {
     var pop = el('div', 'vtour-pop');
-    var cta =
-      mode === 'route' ? '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>'
-      : '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
+
+    // Обязательность: шаг с check() продвигается ТОЛЬКО через реальное выполнение
+    // (см. pollActive) — ручной кнопки "Готово, дальше" для него быть не должно,
+    // иначе тур продвигается по клику, а не по факту действия (это и была
+    // причина "перескакивает раньше времени"). Ручная кнопка — только для
+    // шагов без check() (если такие появятся).
+    var cta;
+    if (mode === 'route') {
+      cta = '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
+    } else if (step.check) {
+      cta = '<div class="vtour-waiting">Ждём выполнения на странице…</div>';
+    } else {
+      cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
+    }
     var note =
       mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' : '';
+
+    // Пропустить — только для явно опциональных шагов (step.optional === true).
+    // Сейчас это только «Роли» (когда появятся как шаг); всё остальное — либо
+    // системно обязательно (подразделения/должности), либо нужно для JTBD
+    // (график/локация/сотрудник/отметка/отчёт) — пропуска не даём.
+    var skipBtn = step.optional ? '<button class="vtour-btn vtour-btn--ghost vtour-skip">Пропустить</button>' : '';
 
     pop.innerHTML =
       '<div class="vtour-pop__title">' + esc(step.title) + '</div>' +
       (step.why ? '<div class="vtour-pop__why">' + esc(step.why) + '</div>' : '') +
       note +
-      '<div class="vtour-pop__actions">' +
-      '<button class="vtour-btn vtour-btn--ghost vtour-skip">Пропустить</button>' + cta + '</div>';
+      '<div class="vtour-pop__actions">' + skipBtn + cta + '</div>';
     ensureRoot().appendChild(pop);
 
     // Позиционирование: рядом с целью или по центру.
@@ -184,7 +200,8 @@
     if (openBtn) openBtn.addEventListener('click', function () { location.href = step.route; });
     var nextBtn = pop.querySelector('.vtour-next');
     if (nextBtn) nextBtn.addEventListener('click', function () { markDone(step.id); advance(step.id); });
-    pop.querySelector('.vtour-skip').addEventListener('click', function () { advance(step.id, true); });
+    var skipEl = pop.querySelector('.vtour-skip');
+    if (skipEl) skipEl.addEventListener('click', function () { advance(step.id, true); });
   }
 
   function advance(afterId, skip) {
@@ -212,8 +229,18 @@
       state.done = loadProgress();
       var active = firstUndone();
       state.activeId = active ? active.id : null;
-      render();
-      // На возврат/навигацию по Verifix — перерисовываем (шаг мог стать «на экране»).
+
+      // Интро — один раз, только если прогресса вообще ещё не было
+      // (первый визит в эту песочницу). См. opts.intro: { title, text, cta }.
+      var seenIntro = false;
+      try { seenIntro = !!localStorage.getItem(LS_KEY + '_intro_seen'); } catch (e) {}
+      var noProgressYet = Object.keys(state.done).length === 0;
+
+      if (opts && opts.intro && noProgressYet && !seenIntro) {
+        renderIntro(opts.intro);
+      } else {
+        render();
+      }
       window.addEventListener('popstate', render);
       window.addEventListener('hashchange', render);
       window.addEventListener('resize', render);
@@ -222,6 +249,23 @@
     reset: function () { state.done = {}; saveProgress(); render(); },
     _state: state,
   };
+
+  function renderIntro(intro) {
+    var root = ensureRoot();
+    root.innerHTML = '';
+    var overlay = el('div', 'vtour-intro-overlay');
+    var card = el('div', 'vtour-intro-card');
+    card.innerHTML =
+      '<div class="vtour-intro-card__title">' + esc(intro.title || 'Добро пожаловать') + '</div>' +
+      '<div class="vtour-intro-card__text">' + esc(intro.text || '') + '</div>' +
+      '<button class="vtour-btn vtour-intro-start">' + esc(intro.cta || 'Начать') + '</button>';
+    overlay.appendChild(card);
+    root.appendChild(overlay);
+    card.querySelector('.vtour-intro-start').addEventListener('click', function () {
+      try { localStorage.setItem(LS_KEY + '_intro_seen', '1'); } catch (e) {}
+      render();
+    });
+  }
 
   global.VerifixTour = API;
 })(window);

@@ -2,26 +2,22 @@
 {% block content %}
 <div class="page">
   <h1 class="page__title">Подразделения</h1>
-  <p class="page__subtitle">Оргструктура — к подразделениям привязываются сотрудники.</p>
+  <p class="page__subtitle">Оргструктура — перетащите строку на другую, чтобы сделать её родителем.</p>
 
-  <table class="datatable">
-    <thead><tr><th>Название</th><th>Родитель</th><th></th></tr></thead>
-    <tbody>
-      {% for d in divisions %}
-      <tr data-row-id="{{ d.id }}">
-        <td>{{ d.name }}</td>
-        <td>{{ parent_name(d.parent_id) }}</td>
-        <td>
-          <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline">
-            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
-          </form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="datatable__empty">Пока не добавлено</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="tree" id="divTree">
+    <div class="tree-root-zone" data-root="1">↥ сделать верхним уровнем</div>
+    {% for d, depth in ordered %}
+    <div class="tree-node" draggable="true" data-row-id="{{ d.id }}" style="margin-left:{{ depth * 26 }}px">
+      <span class="tree-node__grip">⠿</span>
+      <span class="tree-node__name">{{ d.name }}</span>
+      <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline">
+        <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="datatable__empty">Пока не добавлено</p>
+    {% endfor %}
+  </div>
 
   <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
     <div class="field">
@@ -40,4 +36,54 @@
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить подразделение</button>
   </form>
 </div>
+
+<script>
+(function () {
+  var tree = document.getElementById('divTree');
+  if (!tree) return;
+  var draggedId = null;
+
+  function reparent(id, newParentId) {
+    var body = new URLSearchParams();
+    body.set('new_parent_id', newParentId || '');
+    fetch('/vhr/hrm/division_list/' + id + '/reparent', { method: 'POST', body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) location.reload();
+        else alert(data.error || 'Не удалось перенести подразделение');
+      });
+  }
+
+  tree.querySelectorAll('.tree-node').forEach(function (node) {
+    node.addEventListener('dragstart', function () {
+      draggedId = node.dataset.rowId;
+      node.classList.add('dragging');
+    });
+    node.addEventListener('dragend', function () {
+      draggedId = null;
+      tree.querySelectorAll('.dragging, .drop-target').forEach(function (x) { x.classList.remove('dragging', 'drop-target'); });
+    });
+    node.addEventListener('dragover', function (e) {
+      if (!draggedId || node.dataset.rowId === draggedId) return;
+      e.preventDefault();
+      node.classList.add('drop-target');
+    });
+    node.addEventListener('dragleave', function () { node.classList.remove('drop-target'); });
+    node.addEventListener('drop', function (e) {
+      e.preventDefault();
+      node.classList.remove('drop-target');
+      if (draggedId) reparent(draggedId, node.dataset.rowId);
+    });
+  });
+
+  var rootZone = tree.querySelector('[data-root]');
+  rootZone.addEventListener('dragover', function (e) { e.preventDefault(); rootZone.classList.add('drop-target'); });
+  rootZone.addEventListener('dragleave', function () { rootZone.classList.remove('drop-target'); });
+  rootZone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    rootZone.classList.remove('drop-target');
+    if (draggedId) reparent(draggedId, '');
+  });
+})();
+</script>
 {% endblock %}

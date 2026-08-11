@@ -74,9 +74,11 @@ class Schedule(Base):
     id = Column(String, primary_key=True, default=gen_uuid)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
-    kind = Column(String, default="regular")  # regular | hourly | shift
-    start_time = Column(String, nullable=True)
-    end_time = Column(String, nullable=True)
+    kind = Column(String, default="regular")  # regular | hourly
+    week_days = Column(JSON, default=list)    # [1..7] (пн=1) — только для kind='regular'
+    start_time = Column(String, nullable=True)  # только для kind='regular'
+    end_time = Column(String, nullable=True)     # только для kind='regular'
+    norm_hours = Column(Float, nullable=True)    # только для kind='hourly'
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     organization = relationship("Organization", back_populates="schedules")
