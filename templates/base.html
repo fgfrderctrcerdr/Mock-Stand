@@ -18,9 +18,14 @@
       {% for section in menu %}
       <div class="topnav__item {{ 'is-active-section' if section.label == current_section }}">
         <span class="topnav__label">{{ section.label }}</span>
-        <div class="topnav__dropdown">
-          {% for path, label, functional in section.links %}
-          <a href="{{ path }}" class="topnav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">{{ label }}</a>
+        <div class="topnav__dropdown {{ 'topnav__dropdown--cols' if section.columns|length > 1 else '' }}">
+          {% for col in section.columns %}
+          <div class="topnav__col">
+            {% if col.title %}<div class="topnav__col-title">{{ col.title }}</div>{% endif %}
+            {% for path, label, functional in col.links %}
+            <a href="{{ path }}" class="topnav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">{{ label }}</a>
+            {% endfor %}
+          </div>
           {% endfor %}
         </div>
       </div>

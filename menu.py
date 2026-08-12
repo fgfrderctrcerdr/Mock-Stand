@@ -1,97 +1,148 @@
 """
-Конфиг верхнего меню — по СКРИНШОТАМ реального Verifix (не по внутренним
-кодам PL/SQL-модулей, как в первой версии — это была ошибка: реальные
-разделы верхнего меню называются по бизнес-функциям, а не hrm/htt/href).
+Верхняя навигация — по РЕАЛЬНЫМ скриншотам дропдаунов (не по прежним
+догадкам). Верхний уровень теперь: Кадры, Посещения, Управление сменами,
+Зарплата, Отчётность, Настройки (6 вкладок — в предыдущей версии были ещё
+Эффективность/Развитие/Рекрутинг из более смутного скрина; в этих двух
+чётких скринах их нет, доверяем более чёткому источнику).
 
-Реальная верхняя навигация: Кадры, Посещения, Эффективность, Зарплата,
-Развитие, Отчётность, Рекрутинг, Настройки.
-
-functional=True — реальная страница с БД. functional=False — заглушка.
+Каждый раздел — список "columns" (может быть 1 колонка без заголовка,
+как «Посещения», или несколько с заголовками, как «Кадры»: Главное /
+Организация / Дашборд). Это отражает реальную вёрстку дропдауна Кадры.
 """
 
 MENU = [
     {
         "key": "kadry",
         "label": "Кадры",
-        "links": [
-            ("/vhr/href/employee", "Сотрудники", True),
-            ("/vhr/hpd/hiring", "Приём на работу", False),
-            ("/vhr/hpd/transfer", "Переводы", False),
-            ("/vhr/hpd/dismissal", "Увольнения", False),
-            ("/vhr/href/employee_documents", "Документы сотрудников", False),
+        "columns": [
+            {
+                "title": "Главное",
+                "links": [
+                    ("/vhr/href/employee", "Сотрудники", True),
+                ],
+            },
+            {
+                "title": "Организация",
+                "links": [
+                    ("/vhr/hrm/division_list", "Подразделения", True),
+                    ("/vhr/hrm/retail_points", "Торговые точки", False),
+                    ("/vhr/hrm/job_list", "Должности", True),
+                ],
+            },
+            {
+                "title": "Дашборд",
+                "links": [
+                    ("/vhr/hrm/division_stats", "Статистика работы подразделений", False),
+                    ("/vhr/hrm/report_queue", "Очередь отчётов", False),
+                    ("/vhr/hrm/year_summary", "Итоги года", False),
+                ],
+            },
         ],
     },
     {
         "key": "poseshcheniya",
         "label": "Посещения",
-        "links": [
-            ("/vhr/htt/schedule_list", "Графики работы", True),
-            ("/vhr/htt/location_list", "Локации", True),
-            ("/vhr/htt/attendance_mark", "Отметки", True),
-            ("/vhr/htt/calendar", "Производственный календарь", False),
-            ("/vhr/htt/tracks", "Треки перемещений", False),
+        "columns": [
+            {
+                "title": None,
+                "links": [
+                    ("/vhr/htt/schedule_list", "Графики работы", True),
+                    ("/vhr/htt/absence_requests", "Запросы на отсутствие", False),
+                    ("/vhr/htt/schedule_change_requests", "Запросы на изменение графика", False),
+                    ("/vhr/htt/location_requests", "Запросы на локацию", False),
+                    ("/vhr/htt/overtime_requests", "Запросы на сверхурочные", False),
+                    ("/vhr/htt/mark_requests", "Запросы на отметки", False),
+                    ("/vhr/htt/overtime", "Сверхурочные", False),
+                    ("/vhr/htt/location_list", "Локации", True),
+                    ("/vhr/htt/devices", "Устройства", False),
+                    ("/vhr/htt/attendance_mark", "Отметки", True),
+                    ("/vhr/htt/individual_schedules", "Индивидуальные графики", False),
+                    ("/vhr/htt/timetables", "Расписания", False),
+                    ("/vhr/htt/timetable_change_requests", "Запросы на изменение расписания", False),
+                ],
+            },
         ],
     },
     {
-        "key": "effektivnost",
-        "label": "Эффективность",
-        "links": [
-            ("/vhr/hsm/kpi", "KPI", False),
-            ("/vhr/hsm/reviews", "Оценки", False),
+        "key": "smeny",
+        "label": "Управление сменами",
+        "columns": [
+            {
+                "title": None,
+                "links": [
+                    ("/vhr/hsm/shift_templates", "Шаблоны смен", False),
+                    ("/vhr/hsm/shift_assignment", "Назначение смен", False),
+                ],
+            },
         ],
     },
     {
         "key": "zarplata",
         "label": "Зарплата",
-        "links": [
-            ("/vhr/hpr/charges", "Начисления", False),
-            ("/vhr/hpr/statements", "Ведомости", False),
-            ("/vhr/hpr/payments", "Выплаты", False),
-        ],
-    },
-    {
-        "key": "razvitie",
-        "label": "Развитие",
-        "links": [
-            ("/vhr/hsm/training", "Обучение", False),
-            ("/vhr/hsm/growth_plans", "Планы развития", False),
+        "columns": [
+            {
+                "title": None,
+                "links": [
+                    ("/vhr/hpr/charges", "Начисления", False),
+                    ("/vhr/hpr/statements", "Ведомости", False),
+                    ("/vhr/hpr/payments", "Выплаты", False),
+                ],
+            },
         ],
     },
     {
         "key": "otchetnost",
         "label": "Отчётность",
-        "links": [
-            ("/vhr/htt/timesheet_report", "Отчёт по часам", True),
-            ("/vhr/hpr/payroll_report", "Отчёт по зарплате", False),
-        ],
-    },
-    {
-        "key": "rekruting",
-        "label": "Рекрутинг",
-        "links": [
-            ("/vhr/hpd/vacancies", "Вакансии", False),
-            ("/vhr/hpd/candidates", "Кандидаты", False),
+        "columns": [
+            {
+                "title": None,
+                "links": [
+                    ("/vhr/htt/timesheet_report", "Отчёт по часам", True),
+                    ("/vhr/hpr/payroll_report", "Отчёт по зарплате", False),
+                ],
+            },
         ],
     },
     {
         "key": "nastroyki",
         "label": "Настройки",
-        "links": [
-            ("/vhr/hrm/division_list", "Подразделения", True),
-            ("/vhr/hrm/job_list", "Должности", True),
-            ("/vhr/admin/users", "Пользователи", True),
-            ("/vhr/admin/roles", "Роли", False),
-            ("/vhr/admin/dictionaries", "Справочники", False),
-            ("/vhr/admin/regions", "Регионы", False),
-            ("/vhr/admin/banks", "Банки", False),
+        "columns": [
+            {
+                "title": "Администрирование",
+                "links": [
+                    ("/vhr/admin/users", "Пользователи", True),
+                    ("/vhr/admin/roles", "Роли", False),
+                ],
+            },
+            {
+                "title": "Справочники",
+                "links": [
+                    ("/vhr/admin/dictionaries", "Справочники", False),
+                    ("/vhr/admin/regions", "Регионы", False),
+                    ("/vhr/admin/banks", "Банки", False),
+                ],
+            },
         ],
     },
 ]
 
 
+def _all_links():
+    for section in MENU:
+        for col in section["columns"]:
+            for link in col["links"]:
+                yield link
+
+
 def all_functional_paths():
-    return [path for section in MENU for (path, _, functional) in section["links"] if functional]
+    return [path for (path, _, functional) in _all_links() if functional]
 
 
 def all_stub_paths():
-    return [(path, label, section["label"]) for section in MENU for (path, label, functional) in section["links"] if not functional]
+    result = []
+    for section in MENU:
+        for col in section["columns"]:
+            for path, label, functional in col["links"]:
+                if not functional:
+                    result.append((path, label, section["label"]))
+    return result

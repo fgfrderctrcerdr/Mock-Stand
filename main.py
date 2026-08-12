@@ -105,9 +105,10 @@ def log_event(request: Request, type_: str, meta: dict | None = None):
 def base_ctx(request: Request, page_title: str):
     current_section = None
     for section in MENU:
-        for path, _, _ in section["links"]:
-            if path == request.url.path:
-                current_section = section["label"]
+        for col in section["columns"]:
+            for path, _, _ in col["links"]:
+                if path == request.url.path:
+                    current_section = section["label"]
     return {
         "request": request,
         "page_title": page_title,

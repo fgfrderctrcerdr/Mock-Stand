@@ -59,9 +59,16 @@ body {
   display: none;
   position: absolute; top: 100%; left: 0; min-width: 220px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  box-shadow: var(--shadow-lg); padding: 6px; z-index: 50;
+  box-shadow: var(--shadow-lg); padding: 10px; z-index: 50;
 }
-.topnav__item:hover .topnav__dropdown { display: block; }
+.topnav__dropdown--cols { display: none; min-width: 600px; }
+.topnav__item:hover .topnav__dropdown { display: flex; gap: 22px; }
+.topnav__col { min-width: 180px; padding: 0 6px; }
+.topnav__col-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-muted); border-bottom: 1px solid var(--border);
+  padding-bottom: 6px; margin-bottom: 6px;
+}
 .topnav__link {
   display: block; padding: 8px 12px; border-radius: 6px; font-size: 13.5px;
   color: var(--text); text-decoration: none;
