@@ -21,7 +21,7 @@
   'use strict';
 
   var LS_KEY = 'verifix_tour_progress';
-  var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null };
+  var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null, justAdvanced: false };
 
   function saveProgress() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.done)); } catch (e) {} }
   function loadProgress() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { return {}; } }
@@ -52,6 +52,13 @@
     if (state.activeId === id) {
       var next = firstUndone();
       state.activeId = next ? next.id : null;
+      // Отличаем "только что закончил шаг" (продолжаем показывать гид по
+      // навигации к следующему шагу, даже оставаясь на текущей странице)
+      // от "сам ушёл на другую страницу" (см. фидбек — во втором случае
+      // гид мешал). Флаг runtime-only, не сохраняется — при настоящей
+      // навигации (перезагрузке страницы) весь state.js создаётся заново
+      // и сам собой сбрасывается в false, что и даёт нужное различие.
+      state.justAdvanced = true;
     }
     render();
   }
@@ -168,16 +175,15 @@
     var inputTarget = step.inputSelector ? document.querySelector(step.inputSelector) : null;
 
     // Если шаг привязан к другому экрану Verifix — ведём через реальную
-    // верхнюю навигацию, НО только с нейтральной домашней страницы (там
-    // пользователь ничем другим не занят). Если он сам ушёл на какую-то
-    // ДРУГУЮ конкретную страницу (например, вернулся посмотреть уже
-    // готовые подразделения) — не мешаем: подсказка по невыполненному
-    // шагу «наезжала» на то, чем он реально занят в этот момент (см.
-    // фидбек №3). Панель-чеклист справа с текстом активного шага
-    // остаётся — как добраться, там уже написано, этого достаточно, не
-    // навязываем принудительную подсветку меню где угодно, кроме старта.
+    // верхнюю навигацию в двух случаях: (а) нейтральная домашняя страница
+    // (пользователь ничем другим не занят), (б) только что закончил
+    // предыдущий шаг (justAdvanced) — это продолжение той же цепочки
+    // действий, гид должен довести до следующего шага. Если он сам ушёл
+    // на какую-то ДРУГУЮ страницу без этого — не мешаем (см. фидбек):
+    // подсказка по невыполненному шагу не должна наезжать на то, чем он
+    // реально занят в этот момент.
     if (step.route && !onRoute(step)) {
-      if (location.pathname === '/') renderNavGuide(step);
+      if (location.pathname === '/' || state.justAdvanced) renderNavGuide(step);
       return;
     }
     if (step.selector && !actionTarget) {
@@ -437,7 +443,7 @@
     render();
   }
 
-  function goStep(id) { state.activeId = id; render(); }
+  function goStep(id) { state.activeId = id; state.justAdvanced = true; render(); }
 
   function esc(s) {
     return String(s == null ? '' : s)
