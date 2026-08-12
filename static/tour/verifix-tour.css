@@ -1,6 +1,16 @@
 /* Verifix Onboarding Tour — стили наложенного слоя. Префикс vtour- чтобы
    не конфликтовать со стилями Verifix (Metronic/Bootstrap). */
 
+/* Плавность (см. фидбек №3 — было слишком резко): все всплывающие
+   элементы тура появляются с лёгким fade-in, а не мгновенно. Анимация
+   (не transition) — потому что transition требует смены состояния
+   ПОСЛЕ вставки в DOM, а нам нужно плавно появиться сразу при создании. */
+@keyframes vtour-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.vtour-highlight-ring, .vtour-highlight-dim, .vtour-arrow, .vtour-pop, .vtour-panel {
+  animation: vtour-fade-in 0.22s ease;
+}
+.vtour-pop { transition: opacity 0.25s ease, top 0.2s ease, left 0.2s ease; }
+
 #vtour-root { position: fixed; inset: 0; pointer-events: none; z-index: 99999;
   font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif; }
 #vtour-root > * { pointer-events: auto; }
@@ -30,6 +40,12 @@
 .vtour-arrow path { fill: none; stroke: #2563eb; stroke-width: 2.5; }
 .vtour-arrow .vtour-arrow-head { fill: #2563eb; stroke: none; }
 
+/* Принудительное раскрытие дропдауна верхнего меню (см. renderNavGuide в
+   JS) — тур ведёт к пункту меню, которого не видно без реального hover;
+   этот класс имитирует hover программно. Дублирует правило
+   .topnav__item:hover .topnav__dropdown из styles.css. */
+.topnav__item.vtour-force-open .topnav__dropdown { display: flex !important; }
+
 /* Попап-подсказка */
 .vtour-pop {
   position: fixed; width: 360px; max-width: calc(100vw - 24px);
@@ -43,6 +59,7 @@
 .vtour-pop__why { font-size: 13.5px; color: #6b7280; line-height: 1.45; margin-bottom: 12px; }
 .vtour-note { font-size: 12px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a;
   border-radius: 8px; padding: 6px 10px; margin-bottom: 12px; }
+.vtour-note--ok { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
 .vtour-pop__actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .vtour-btn { font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;

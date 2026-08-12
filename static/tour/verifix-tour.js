@@ -21,7 +21,7 @@
   'use strict';
 
   var LS_KEY = 'verifix_tour_progress';
-  var state = { steps: [], done: {}, opts: {}, activeId: null, pollTimer: null };
+  var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null };
 
   function saveProgress() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.done)); } catch (e) {} }
   function loadProgress() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { return {}; } }
@@ -57,13 +57,22 @@
   }
 
   // --- Проверка выполнения шага (через step.check: () => bool|Promise<bool>) ---
+  //
+  // ВАЖНО: сам факт check()===true больше НЕ продвигает шаг автоматически
+  // (см. фидбек — раньше после первой же созданной сущности тур сразу
+  // толкал к следующему шагу, не давая добавить остальные). Теперь
+  // check()===true только помечает "минимум выполнен" (state.satisfied) —
+  // это снимает затемнение/рамку и показывает кнопку «Далее», но человек
+  // сам решает, когда двигаться дальше. state.done[id] (реальное
+  // завершение шага, чек-марка в панели) ставится только по явному клику
+  // «Далее» — см. showPopover/markDone.
   function pollActive() {
     clearTimeout(state.pollTimer);
     var step = state.steps.filter(function (s) { return s.id === state.activeId; })[0];
     if (!step || !step.check) return;
     Promise.resolve(step.check(state.opts)).then(function (ok) {
-      if (ok) markDone(step.id);
-      else state.pollTimer = setTimeout(pollActive, step.pollMs || 4000);
+      if (state.satisfied[step.id] !== ok) { state.satisfied[step.id] = ok; render(); return; }
+      state.pollTimer = setTimeout(pollActive, step.pollMs || 4000);
     }).catch(function () {
       state.pollTimer = setTimeout(pollActive, step.pollMs || 8000);
     });
@@ -86,9 +95,18 @@
     return r;
   }
 
+  // Принудительно открытые дропдауны верхнего меню (см. renderNavGuide)
+  // живут ВНЕ #vtour-root (это классы на реальных элементах навигации),
+  // поэтому root.innerHTML='' их не убирает — чистим явно на каждый render().
+  function clearForcedOpen() {
+    var els = document.querySelectorAll('.vtour-force-open');
+    for (var i = 0; i < els.length; i++) els[i].classList.remove('vtour-force-open');
+  }
+
   function render() {
     var root = ensureRoot();
     root.innerHTML = '';
+    clearForcedOpen();
     if (state.opts.hidden) return;
 
     var doneCount = state.steps.filter(function (s) { return state.done[s.id]; }).length;
@@ -140,9 +158,10 @@
     var actionTarget = step.selector ? document.querySelector(step.selector) : null;
     var inputTarget = step.inputSelector ? document.querySelector(step.inputSelector) : null;
 
-    // Если шаг привязан к другому экрану Verifix — показываем CTA «Открыть экран».
+    // Если шаг привязан к другому экрану Verifix — ведём через реальную
+    // верхнюю навигацию (см. №1 фидбека), не просто центрированной кнопкой.
     if (step.route && !onRoute(step)) {
-      showPopover(null, step, 'route');
+      renderNavGuide(step);
       return;
     }
     if (step.selector && !actionTarget) {
@@ -151,31 +170,68 @@
       return;
     }
 
-    // Подсвечиваем поле ввода, если оно задано (см. фидбек — раньше
-    // подсвечивалась сразу кнопка, что сбивало с толку: сначала нужно
-    // заполнить поле, а уже потом жать «Добавить»). Стрелкой показываем
-    // путь от поля к кнопке. Если inputSelector не задан — подсвечиваем
-    // саму кнопку, как раньше (для шагов без формы).
     var primary = inputTarget || actionTarget;
-    var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
-    var pop = showPopover(primary, step, 'ok');
-    pollActive();
 
-    // По фокусу на подсвеченное поле — убираем и затемнение, и текст
-    // подсказки (человек уже понял задачу, дальше это просто мешает
-    // видеть форму); рамка на поле и стрелка к кнопке остаются как
-    // тихий ориентир, куда жать после заполнения.
-    if (inputTarget && visuals) {
-      var onFocus = function () {
-        fadeOut(visuals.dim);
-        fadeOut(pop);
-        inputTarget.removeEventListener('focus', onFocus);
-      };
-      inputTarget.addEventListener('focus', onFocus);
+    // Синхронная предпроверка — избегаем «мигания» затемнения на каждой
+    // загрузке страницы, когда минимум уже выполнен (see below: без этого
+    // затемнение на долю секунды появлялось и сразу гасло при каждом
+    // повторном заходе на уже пройденный шаг).
+    if (step.check) {
+      try {
+        var immediate = step.check(state.opts);
+        if (immediate && typeof immediate.then !== 'function') state.satisfied[step.id] = !!immediate;
+      } catch (e) { /* игнор — обычный поллинг подхватит */ }
+    }
+
+    if (step.check && state.satisfied[step.id]) {
+      // Минимум выполнен (см. №2 фидбека) — не давим дальше рамкой и
+      // затемнением, человек сам решает, когда закончил добавлять записи.
+      // Явное продолжение — только по кнопке «Далее» в попапе.
+      showPopover(primary, step, 'satisfied');
+    } else {
+      var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
+      var pop = showPopover(primary, step, 'ok');
+
+      // По фокусу на подсвеченное поле — убираем и затемнение, и текст
+      // подсказки; рамка на поле и стрелка к кнопке остаются как тихий
+      // ориентир, куда жать после заполнения.
+      if (inputTarget && visuals) {
+        var onFocus = function () {
+          fadeOut(visuals.dim);
+          fadeOut(pop);
+          inputTarget.removeEventListener('focus', onFocus);
+        };
+        inputTarget.addEventListener('focus', onFocus);
+      }
+    }
+    pollActive();
+  }
+
+  // Ведёт через реальную верхнюю навигацию: находит пункт меню с нужным
+  // href, принудительно раскрывает его дропдаун (класс, не hover — иначе
+  // не подсветить скрытый по умолчанию пункт), подсвечивает и вкладку, и
+  // сам пункт, стрелкой соединяет одно с другим. Клик — обычная ссылка,
+  // настоящий переход браузера, как реальная навигация по Verifix.
+  function renderNavGuide(step) {
+    var link = document.querySelector('a[href="' + step.route + '"]');
+    var tabEl = link ? link.closest('.topnav__item') : null;
+
+    if (link && tabEl) {
+      tabEl.classList.add('vtour-force-open');
+      var tabLabelEl = tabEl.querySelector('.topnav__label') || tabEl;
+      highlight(tabLabelEl, null, true);   // лёгкая рамка на вкладке, без затемнения всего экрана
+      highlight(link, null);               // рамка + затемнение на самом пункте меню — это и есть цель клика
+      drawArrow(ensureRoot(), tabLabelEl, link);
+      showPopover(link, step, 'route');
+      try { tabLabelEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    } else {
+      // Не нашли пункт меню (например, ссылка ещё не отрендерилась) —
+      // прежний фолбэк с явной кнопкой перехода.
+      showPopover(null, step, 'route');
     }
   }
 
-  function highlight(target, arrowTo) {
+  function highlight(target, arrowTo, noDim) {
     var root = ensureRoot();
     var r = target.getBoundingClientRect();
 
@@ -186,16 +242,19 @@
     ring.style.height = (r.height + 12) + 'px';
     root.appendChild(ring);
 
-    var dim = el('div', 'vtour-highlight-dim');
-    dim.style.top = ring.style.top; dim.style.left = ring.style.left;
-    dim.style.width = ring.style.width; dim.style.height = ring.style.height;
-    root.appendChild(dim);
+    var dim = null;
+    if (!noDim) {
+      dim = el('div', 'vtour-highlight-dim');
+      dim.style.top = ring.style.top; dim.style.left = ring.style.left;
+      dim.style.width = ring.style.width; dim.style.height = ring.style.height;
+      root.appendChild(dim);
+    }
 
     if (arrowTo) drawArrow(root, target, arrowTo);
 
     try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
 
-    return { dim: dim };
+    return { dim: dim, ring: ring };
   }
 
   function fadeOut(node) {
@@ -254,14 +313,22 @@
     // шагов без check() (если такие появятся).
     var cta;
     if (mode === 'route') {
-      cta = '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
+      // Если рядом реально подсвечен пункт меню (target задан) — кнопка
+      // вторична, основная подсказка — сама подсветка+стрелка на навигации.
+      // Если пункт не нашли (фолбэк, target=null) — кнопка единственный путь,
+      // делаем её основной.
+      var openCls = target ? 'vtour-btn vtour-btn--ghost' : 'vtour-btn';
+      cta = '<button class="' + openCls + ' vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
+    } else if (mode === 'satisfied') {
+      cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || 'Далее →') + '</button>';
     } else if (step.check) {
       cta = '<div class="vtour-waiting">Ждём выполнения на странице…</div>';
     } else {
       cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
     }
     var note =
-      mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' : '';
+      mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' :
+      mode === 'satisfied' ? '<div class="vtour-note vtour-note--ok">Минимум выполнен — можно добавить ещё, а когда закончите, нажмите «Далее».</div>' : '';
 
     // Пропустить — только для явно опциональных шагов (step.optional === true).
     // Сейчас это только «Роли» (когда появятся как шаг); всё остальное — либо
@@ -305,7 +372,7 @@
     var openBtn = pop.querySelector('.vtour-open');
     if (openBtn) openBtn.addEventListener('click', function () { location.href = step.route; });
     var nextBtn = pop.querySelector('.vtour-next');
-    if (nextBtn) nextBtn.addEventListener('click', function () { markDone(step.id); advance(step.id); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { markDone(step.id); });
     var skipEl = pop.querySelector('.vtour-skip');
     if (skipEl) skipEl.addEventListener('click', function () { advance(step.id, true); });
     return pop;
@@ -334,6 +401,7 @@
       state.steps = steps || [];
       state.opts = opts || {};
       state.done = loadProgress();
+      state.satisfied = {};
       var active = firstUndone();
       state.activeId = active ? active.id : null;
 
@@ -353,7 +421,7 @@
       window.addEventListener('resize', render);
     },
     stop: function () { clearTimeout(state.pollTimer); var r = document.getElementById('vtour-root'); if (r) r.remove(); },
-    reset: function () { state.done = {}; saveProgress(); render(); },
+    reset: function () { state.done = {}; state.satisfied = {}; saveProgress(); render(); },
     _state: state,
   };
 
