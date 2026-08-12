@@ -5,13 +5,30 @@
   font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif; }
 #vtour-root > * { pointer-events: auto; }
 
-/* Подсветка целевого элемента: рамка + затемнение вокруг через box-shadow */
-.vtour-highlight {
+/* Подсветка целевого элемента — рамка (клики видны, только визуал) */
+.vtour-highlight-ring {
   position: fixed; border-radius: 8px;
   border: 2px solid #2563eb;
-  box-shadow: 0 0 0 4px rgba(37,99,235,0.25), 0 0 0 9999px rgba(17,24,39,0.45);
-  transition: all 0.2s ease; pointer-events: none;
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.25);
+  transition: all 0.2s ease;
+  pointer-events: none !important;   /* !important — иначе #vtour-root > * (ID) перебивает класс по специфичности, и рамка перехватывает клики от кнопки под собой (это и был баг №2) */
 }
+
+/* Затемнение экрана вокруг подсвеченного элемента — отдельным слоем,
+   чтобы можно было убрать затемнение (по фокусу на поле, см. removeDim
+   в JS), не трогая саму рамку. */
+.vtour-highlight-dim {
+  position: fixed; border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(17,24,39,0.45);
+  transition: opacity 0.25s ease;
+  pointer-events: none !important;
+}
+.vtour-highlight-dim.is-fading { opacity: 0; }
+
+/* Стрелка от подсвеченного поля к кнопке действия */
+.vtour-arrow { position: fixed; pointer-events: none !important; overflow: visible; }
+.vtour-arrow path { fill: none; stroke: #2563eb; stroke-width: 2.5; }
+.vtour-arrow .vtour-arrow-head { fill: #2563eb; stroke: none; }
 
 /* Попап-подсказка */
 .vtour-pop {

@@ -127,32 +127,95 @@
   }
 
   function renderCoach(step) {
-    var target = step.selector ? document.querySelector(step.selector) : null;
+    var actionTarget = step.selector ? document.querySelector(step.selector) : null;
+    var inputTarget = step.inputSelector ? document.querySelector(step.inputSelector) : null;
 
     // Если шаг привязан к другому экрану Verifix — показываем CTA «Открыть экран».
     if (step.route && !onRoute(step)) {
       showPopover(null, step, 'route');
       return;
     }
-    if (step.selector && !target) {
+    if (step.selector && !actionTarget) {
       // На нужном экране, но элемент не найден (селектор уточняется под стенд).
       showPopover(null, step, 'notfound');
       return;
     }
-    if (target) highlight(target);
-    showPopover(target, step, 'ok');
+
+    // Подсвечиваем поле ввода, если оно задано (см. №1 фидбека — раньше
+    // подсвечивалась сразу кнопка, что сбивало с толку: сначала нужно
+    // заполнить поле, а уже потом жать «Добавить»). Стрелкой показываем
+    // путь от поля к кнопке. Если inputSelector не задан — подсвечиваем
+    // саму кнопку, как раньше (для шагов без формы, напр. подтверждение).
+    var primary = inputTarget || actionTarget;
+    if (primary) highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null, inputTarget);
+    showPopover(primary, step, 'ok');
     pollActive();
   }
 
-  function highlight(target) {
+  function highlight(target, arrowTo, dimRemovalTarget) {
+    var root = ensureRoot();
     var r = target.getBoundingClientRect();
-    var box = el('div', 'vtour-highlight');
-    box.style.top = (r.top - 6) + 'px';
-    box.style.left = (r.left - 6) + 'px';
-    box.style.width = (r.width + 12) + 'px';
-    box.style.height = (r.height + 12) + 'px';
-    ensureRoot().appendChild(box);
+
+    var ring = el('div', 'vtour-highlight-ring');
+    ring.style.top = (r.top - 6) + 'px';
+    ring.style.left = (r.left - 6) + 'px';
+    ring.style.width = (r.width + 12) + 'px';
+    ring.style.height = (r.height + 12) + 'px';
+    root.appendChild(ring);
+
+    var dim = el('div', 'vtour-highlight-dim');
+    dim.style.top = ring.style.top; dim.style.left = ring.style.left;
+    dim.style.width = ring.style.width; dim.style.height = ring.style.height;
+    root.appendChild(dim);
+
+    if (arrowTo) drawArrow(root, target, arrowTo);
+
     try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+
+    // По фокусу на подсвеченное поле — снимаем затемнение (см. №1), рамка
+    // и стрелка остаются, чтобы человек не терял ориентир на кнопку.
+    if (dimRemovalTarget) {
+      var onFocus = function () {
+        dim.classList.add('is-fading');
+        setTimeout(function () { dim.remove(); }, 250);
+        dimRemovalTarget.removeEventListener('focus', onFocus);
+      };
+      dimRemovalTarget.addEventListener('focus', onFocus);
+    }
+  }
+
+  function drawArrow(root, from, to) {
+    var fr = from.getBoundingClientRect();
+    var tr = to.getBoundingClientRect();
+    var x1 = fr.right, y1 = fr.top + fr.height / 2;
+    var x2 = tr.left - 8, y2 = tr.top + tr.height / 2;
+    // Если кнопка ниже поля (частый случай — поле сверху, кнопка снизу),
+    // ведём стрелку от низа поля к верху кнопки, а не по горизонтали.
+    if (Math.abs(y2 - y1) > Math.abs(x2 - x1)) {
+      x1 = fr.left + fr.width / 2; y1 = fr.bottom;
+      x2 = tr.left + tr.width / 2; y2 = tr.top - 8;
+    }
+    var minX = Math.min(x1, x2) - 20, minY = Math.min(y1, y2) - 20;
+    var w = Math.abs(x2 - x1) + 40, h = Math.abs(y2 - y1) + 40;
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'vtour-arrow');
+    svg.style.top = minY + 'px'; svg.style.left = minX + 'px';
+    svg.setAttribute('width', w); svg.setAttribute('height', h);
+    var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M' + (x1 - minX) + ' ' + (y1 - minY) + ' Q ' + (mx - minX) + ' ' + (my - minY) + ' ' + (x2 - minX) + ' ' + (y2 - minY));
+    svg.appendChild(path);
+    var angle = Math.atan2(y2 - my, x2 - mx);
+    var hx = x2 - minX, hy = y2 - minY;
+    var head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    var a1 = angle + 2.6, a2 = angle - 2.6;
+    head.setAttribute('points',
+      hx + ',' + hy + ' ' +
+      (hx + 9 * Math.cos(a1)) + ',' + (hy + 9 * Math.sin(a1)) + ' ' +
+      (hx + 9 * Math.cos(a2)) + ',' + (hy + 9 * Math.sin(a2)));
+    head.setAttribute('class', 'vtour-arrow-head');
+    svg.appendChild(head);
+    root.appendChild(svg);
   }
 
   function showPopover(target, step, mode) {
