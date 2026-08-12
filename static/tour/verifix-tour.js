@@ -103,10 +103,19 @@
     for (var i = 0; i < els.length; i++) els[i].classList.remove('vtour-force-open');
   }
 
+  // Кнопка «Далее» (см. renderNextButton) вставляется НАСТОЯЩИМ элементом
+  // прямо в страницу (не в #vtour-root — см. пояснение там же), поэтому
+  // тоже переживает root.innerHTML='' и требует явной очистки.
+  function clearInjectedNextButton() {
+    var els = document.querySelectorAll('.vtour-next-inline');
+    for (var i = 0; i < els.length; i++) els[i].remove();
+  }
+
   function render() {
     var root = ensureRoot();
     root.innerHTML = '';
     clearForcedOpen();
+    clearInjectedNextButton();
     if (state.opts.hidden) return;
 
     var doneCount = state.steps.filter(function (s) { return state.done[s.id]; }).length;
@@ -159,9 +168,16 @@
     var inputTarget = step.inputSelector ? document.querySelector(step.inputSelector) : null;
 
     // Если шаг привязан к другому экрану Verifix — ведём через реальную
-    // верхнюю навигацию (см. №1 фидбека), не просто центрированной кнопкой.
+    // верхнюю навигацию, НО только с нейтральной домашней страницы (там
+    // пользователь ничем другим не занят). Если он сам ушёл на какую-то
+    // ДРУГУЮ конкретную страницу (например, вернулся посмотреть уже
+    // готовые подразделения) — не мешаем: подсказка по невыполненному
+    // шагу «наезжала» на то, чем он реально занят в этот момент (см.
+    // фидбек №3). Панель-чеклист справа с текстом активного шага
+    // остаётся — как добраться, там уже написано, этого достаточно, не
+    // навязываем принудительную подсветку меню где угодно, кроме старта.
     if (step.route && !onRoute(step)) {
-      renderNavGuide(step);
+      if (location.pathname === '/') renderNavGuide(step);
       return;
     }
     if (step.selector && !actionTarget) {
@@ -209,56 +225,41 @@
     pollActive();
   }
 
-  // Компактная кнопка «Далее» у формы — НЕ всплывающий попап. Встаёт под
-  // левым нижним углом формы/контейнера с кнопкой действия (там, где
-  // создаются записи), а не где-то отдельно на экране. Проверяет
-  // выполнение ЖИВЬЁМ в момент клика (не только по устаревшему
-  // state.satisfied) — если список внезапно пуст (например, всё удалили
-  // за это время), не пускает дальше и объясняет простыми словами, зачем
-  // нужна хотя бы одна запись.
+  // Компактная кнопка «Далее» у формы — НЕ всплывающий попап и НЕ
+  // position:fixed-элемент (см. фидбек №1/№2: если позиционировать
+  // fixed-координатами, посчитанными от вьюпорта, кнопка либо наезжает
+  // на форму при её пересчёте, либо оказывается ниже видимой области
+  // на длинных формах — а раз она fixed, обычный скролл страницы её не
+  // приближает, до неё физически нельзя долистать). Правильное решение —
+  // вставить кнопку НАСТОЯЩИМ элементом в поток страницы сразу после
+  // формы: тогда она сама съезжает вниз вместе с содержимым и всегда
+  // долистываема, как обычная часть страницы.
   function renderNextButton(step, actionTarget) {
     var container = actionTarget
       ? (actionTarget.closest('form') || actionTarget.closest('.entity-form') || actionTarget.parentElement)
       : document.querySelector('.page');
-    var rect = container ? container.getBoundingClientRect() : null;
+    if (!container) return;
 
     var wrap = el('div', 'vtour-next-inline');
     wrap.innerHTML =
       '<span class="vtour-next-inline__hint">Минимум выполнен — можно добавить ещё</span>' +
-      '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>';
-    ensureRoot().appendChild(wrap);
+      '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>' +
+      '<div class="vtour-inline-warning" hidden></div>';
+    container.parentNode.insertBefore(wrap, container.nextSibling);
 
-    if (rect) {
-      wrap.style.top = (rect.bottom + 10) + 'px';
-      wrap.style.left = rect.left + 'px';
-    } else {
-      wrap.style.bottom = '24px';
-      wrap.style.left = '24px';
-    }
-
+    var warnEl = wrap.querySelector('.vtour-inline-warning');
     wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
       Promise.resolve(step.check(state.opts)).then(function (ok) {
         if (ok) {
-          fadeOut(wrap);
           markDone(step.id);
         } else {
           state.satisfied[step.id] = false;
-          showEmptyWarning(wrap, step);
+          warnEl.textContent = step.emptyWarning ||
+            'Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.';
+          warnEl.hidden = false;
         }
       });
     });
-  }
-
-  function showEmptyWarning(anchorEl, step) {
-    if (anchorEl.parentNode && anchorEl.parentNode.querySelector('.vtour-inline-warning')) return;
-    var warn = el('div', 'vtour-inline-warning', esc(
-      step.emptyWarning || 'Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.'
-    ));
-    var r = anchorEl.getBoundingClientRect();
-    warn.style.top = (r.bottom + 8) + 'px';
-    warn.style.left = r.left + 'px';
-    ensureRoot().appendChild(warn);
-    setTimeout(function () { fadeOut(warn); }, 4500);
   }
 
   // Ведёт через реальную верхнюю навигацию: находит пункт меню с нужным

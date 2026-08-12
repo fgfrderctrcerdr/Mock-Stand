@@ -78,7 +78,16 @@ body {
 .topnav__link.is-stub { color: var(--text-muted); }
 .topnav__link.is-stub::after { content: " ·"; }
 
-.content-full { padding: 28px 36px; }
+/* Правый отступ побольше — резервирует место под панель прогресса тура
+   (.vtour-panel, справа снизу, фиксированная, 320px+20px margin). Без
+   этого на типичных ширинах экрана (~1280-1400px) широкие поля форм
+   (особенно на странице локаций с картой) визуально заезжали под неё
+   (см. фидбек №4). На узких экранах, где и панель, и это ужимание не
+   имеют смысла в равной мере, убираем лишний отступ отдельным правилом. */
+.content-full { padding: 28px 380px 28px 36px; }
+@media (max-width: 900px) {
+  .content-full { padding: 20px 16px; }
+}
 .page { max-width: 900px; margin: 0 auto; }
 
 .page__title { font-size: 22px; font-weight: 700; margin: 0 0 4px; }

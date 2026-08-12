@@ -6,7 +6,7 @@
    (не transition) — потому что transition требует смены состояния
    ПОСЛЕ вставки в DOM, а нам нужно плавно появиться сразу при создании. */
 @keyframes vtour-fade-in { from { opacity: 0; } to { opacity: 1; } }
-.vtour-highlight-ring, .vtour-highlight-dim, .vtour-arrow, .vtour-pop, .vtour-panel {
+.vtour-highlight-ring, .vtour-highlight-dim, .vtour-arrow, .vtour-pop, .vtour-panel, .vtour-next-inline {
   animation: vtour-fade-in 0.22s ease;
 }
 .vtour-pop { transition: opacity 0.25s ease, top 0.2s ease, left 0.2s ease; }
@@ -63,23 +63,23 @@
 .vtour-pop__actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* Компактная инлайн-кнопка «Далее» у формы — НЕ попап (см. фидбек №3:
-   не должно быть «ещё одного сайдбара»). Сидит прямо под формой. */
+   не должно быть «ещё одного сайдбара»). Вставляется НАСТОЯЩИМ элементом
+   в поток страницы сразу после формы (см. JS renderNextButton) — не
+   position:fixed, поэтому не «уезжает» при скролле и всегда достижима
+   обычной прокруткой, даже если форма выше экрана (см. фидбек №1/№2). */
 .vtour-next-inline {
-  position: fixed; display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px;
-  padding: 9px 12px; box-shadow: 0 8px 24px rgba(17,24,39,0.10);
-  transition: top 0.2s ease, left 0.2s ease;
+  padding: 9px 12px; margin-top: 14px; box-shadow: 0 4px 14px rgba(17,24,39,0.06);
 }
-.vtour-next-inline__hint { font-size: 12.5px; color: #065f46; white-space: nowrap; }
+.vtour-next-inline__hint { font-size: 12.5px; color: #065f46; }
 .vtour-next-inline__btn { flex: none; }
 
 .vtour-inline-warning {
-  position: fixed; max-width: 320px; font-size: 12.5px; line-height: 1.4;
+  width: 100%; font-size: 12.5px; line-height: 1.4;
   color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
-  padding: 8px 12px; box-shadow: 0 8px 24px rgba(17,24,39,0.10);
-  transition: opacity 0.3s ease;
+  padding: 8px 12px;
 }
-.vtour-inline-warning.is-fading { opacity: 0; }
 
 .vtour-btn { font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
   border: 1.5px solid transparent; border-radius: 8px; padding: 8px 14px; background: #2563eb; color: #fff; }
