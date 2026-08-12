@@ -43,6 +43,16 @@
     if (state.done[id]) return;
     state.done[id] = true;
     saveProgress();
+    // Если только что выполненный шаг был активным — двигаем указатель на
+    // следующий невыполненный. Раньше это делал advance() рядом с ручной
+    // кнопкой «Готово, дальше»; когда её убрали (см. фикс обязательности
+    // шагов), про этот переход забыли — activeId зависал на уже
+    // выполненном шаге, и он подсвечивался заново при каждом render()
+    // (это и была причина «после первого раза снова затемняет поле»).
+    if (state.activeId === id) {
+      var next = firstUndone();
+      state.activeId = next ? next.id : null;
+    }
     render();
   }
 
@@ -197,42 +207,31 @@
   function drawArrow(root, from, to) {
     var fr = from.getBoundingClientRect();
     var tr = to.getBoundingClientRect();
-    var x1 = fr.right, y1 = fr.top + fr.height / 2;
-    var x2 = tr.left - 8, y2 = tr.top + tr.height / 2;
-    // Если кнопка ниже поля (частый случай — поле сверху, кнопка снизу),
-    // ведём стрелку от низа поля к верху кнопки, а не по горизонтали.
-    var vertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
-    if (vertical) {
-      x1 = fr.left + fr.width / 2; y1 = fr.bottom;
-      x2 = tr.left + tr.width / 2; y2 = tr.top - 8;
-    }
-    var minX = Math.min(x1, x2) - 60, minY = Math.min(y1, y2) - 60;
-    var w = Math.abs(x2 - x1) + 120, h = Math.abs(y2 - y1) + 120;
 
-    // Дуга: смещаем контрольную точку перпендикулярно линии, а не по
-    // прямой середине (иначе получается просто прямая линия — так и
-    // выглядел прошлый вариант). Дугу всегда «выгибаем» в одну заметную
-    // сторону (вверх/влево от прямой), чтобы было похоже на настоящую
-    // дугу-подсказку, а не на диагональ.
-    var dx = x2 - x1, dy = y2 - y1;
-    var len = Math.sqrt(dx * dx + dy * dy) || 1;
-    var curvature = Math.min(70, Math.max(30, len * 0.35));
-    var px = -dy / len, py = dx / len;   // перпендикуляр единичной длины
-    if (vertical) { if (px > 0) { px = -px; py = -py; } }   // выгибаем влево от вертикальной линии
-    else { if (py > 0) { px = -px; py = -py; } }             // выгибаем вверх от горизонтальной линии
-    var mx = (x1 + x2) / 2 + px * curvature;
-    var my = (y1 + y2) / 2 + py * curvature;
+    // Раньше стрелка шла от центра поля к центру кнопки и просто выгибалась
+    // на 30-70px в сторону — этого не хватало, чтобы обойти соседние поля
+    // формы между ними (см. фидбек со скетчем). Теперь заходим и выходим
+    // строго с ЛЕВОГО края обоих элементов и уводим дугу далеко влево —
+    // за пределы самих полей, а не поперёк них.
+    var x1 = fr.left, y1 = fr.top + fr.height / 2;
+    var x2 = tr.left, y2 = tr.top + tr.height / 2;
+    var swing = Math.max(90, Math.min(160, Math.abs(y2 - y1) * 0.7));
+    var cx = Math.min(x1, x2) - swing;
+    var cy = (y1 + y2) / 2;
+
+    var minX = Math.min(x1, x2, cx) - 20, minY = Math.min(y1, y2, cy) - 20;
+    var maxX = Math.max(x1, x2, cx) + 20, maxY = Math.max(y1, y2, cy) + 20;
+    var w = maxX - minX, h = maxY - minY;
 
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'vtour-arrow');
     svg.style.top = minY + 'px'; svg.style.left = minX + 'px';
     svg.setAttribute('width', w); svg.setAttribute('height', h);
     var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'M' + (x1 - minX) + ' ' + (y1 - minY) + ' Q ' + (mx - minX) + ' ' + (my - minY) + ' ' + (x2 - minX) + ' ' + (y2 - minY));
+    path.setAttribute('d', 'M' + (x1 - minX) + ' ' + (y1 - minY) + ' Q ' + (cx - minX) + ' ' + (cy - minY) + ' ' + (x2 - minX) + ' ' + (y2 - minY));
     svg.appendChild(path);
-    // Угол наконечника — по касательной к кривой в конечной точке (производная
-    // квадратичной кривой Безье в t=1 направлена от контрольной точки к концу).
-    var angle = Math.atan2(y2 - my, x2 - mx);
+    // Наконечник смотрит вправо-внутрь (в левый край кнопки), по касательной кривой в конце.
+    var angle = Math.atan2(y2 - cy, x2 - cx);
     var hx = x2 - minX, hy = y2 - minY;
     var head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     var a1 = angle + 2.6, a2 = angle - 2.6;
