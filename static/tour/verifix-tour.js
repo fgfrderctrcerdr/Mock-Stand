@@ -141,18 +141,31 @@
       return;
     }
 
-    // Подсвечиваем поле ввода, если оно задано (см. №1 фидбека — раньше
+    // Подсвечиваем поле ввода, если оно задано (см. фидбек — раньше
     // подсвечивалась сразу кнопка, что сбивало с толку: сначала нужно
     // заполнить поле, а уже потом жать «Добавить»). Стрелкой показываем
     // путь от поля к кнопке. Если inputSelector не задан — подсвечиваем
-    // саму кнопку, как раньше (для шагов без формы, напр. подтверждение).
+    // саму кнопку, как раньше (для шагов без формы).
     var primary = inputTarget || actionTarget;
-    if (primary) highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null, inputTarget);
-    showPopover(primary, step, 'ok');
+    var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
+    var pop = showPopover(primary, step, 'ok');
     pollActive();
+
+    // По фокусу на подсвеченное поле — убираем и затемнение, и текст
+    // подсказки (человек уже понял задачу, дальше это просто мешает
+    // видеть форму); рамка на поле и стрелка к кнопке остаются как
+    // тихий ориентир, куда жать после заполнения.
+    if (inputTarget && visuals) {
+      var onFocus = function () {
+        fadeOut(visuals.dim);
+        fadeOut(pop);
+        inputTarget.removeEventListener('focus', onFocus);
+      };
+      inputTarget.addEventListener('focus', onFocus);
+    }
   }
 
-  function highlight(target, arrowTo, dimRemovalTarget) {
+  function highlight(target, arrowTo) {
     var root = ensureRoot();
     var r = target.getBoundingClientRect();
 
@@ -172,16 +185,13 @@
 
     try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
 
-    // По фокусу на подсвеченное поле — снимаем затемнение (см. №1), рамка
-    // и стрелка остаются, чтобы человек не терял ориентир на кнопку.
-    if (dimRemovalTarget) {
-      var onFocus = function () {
-        dim.classList.add('is-fading');
-        setTimeout(function () { dim.remove(); }, 250);
-        dimRemovalTarget.removeEventListener('focus', onFocus);
-      };
-      dimRemovalTarget.addEventListener('focus', onFocus);
-    }
+    return { dim: dim };
+  }
+
+  function fadeOut(node) {
+    if (!node) return;
+    node.classList.add('is-fading');
+    setTimeout(function () { node.remove(); }, 250);
   }
 
   function drawArrow(root, from, to) {
@@ -191,20 +201,37 @@
     var x2 = tr.left - 8, y2 = tr.top + tr.height / 2;
     // Если кнопка ниже поля (частый случай — поле сверху, кнопка снизу),
     // ведём стрелку от низа поля к верху кнопки, а не по горизонтали.
-    if (Math.abs(y2 - y1) > Math.abs(x2 - x1)) {
+    var vertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
+    if (vertical) {
       x1 = fr.left + fr.width / 2; y1 = fr.bottom;
       x2 = tr.left + tr.width / 2; y2 = tr.top - 8;
     }
-    var minX = Math.min(x1, x2) - 20, minY = Math.min(y1, y2) - 20;
-    var w = Math.abs(x2 - x1) + 40, h = Math.abs(y2 - y1) + 40;
+    var minX = Math.min(x1, x2) - 60, minY = Math.min(y1, y2) - 60;
+    var w = Math.abs(x2 - x1) + 120, h = Math.abs(y2 - y1) + 120;
+
+    // Дуга: смещаем контрольную точку перпендикулярно линии, а не по
+    // прямой середине (иначе получается просто прямая линия — так и
+    // выглядел прошлый вариант). Дугу всегда «выгибаем» в одну заметную
+    // сторону (вверх/влево от прямой), чтобы было похоже на настоящую
+    // дугу-подсказку, а не на диагональ.
+    var dx = x2 - x1, dy = y2 - y1;
+    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var curvature = Math.min(70, Math.max(30, len * 0.35));
+    var px = -dy / len, py = dx / len;   // перпендикуляр единичной длины
+    if (vertical) { if (px > 0) { px = -px; py = -py; } }   // выгибаем влево от вертикальной линии
+    else { if (py > 0) { px = -px; py = -py; } }             // выгибаем вверх от горизонтальной линии
+    var mx = (x1 + x2) / 2 + px * curvature;
+    var my = (y1 + y2) / 2 + py * curvature;
+
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'vtour-arrow');
     svg.style.top = minY + 'px'; svg.style.left = minX + 'px';
     svg.setAttribute('width', w); svg.setAttribute('height', h);
-    var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
     var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', 'M' + (x1 - minX) + ' ' + (y1 - minY) + ' Q ' + (mx - minX) + ' ' + (my - minY) + ' ' + (x2 - minX) + ' ' + (y2 - minY));
     svg.appendChild(path);
+    // Угол наконечника — по касательной к кривой в конечной точке (производная
+    // квадратичной кривой Безье в t=1 направлена от контрольной точки к концу).
     var angle = Math.atan2(y2 - my, x2 - mx);
     var hx = x2 - minX, hy = y2 - minY;
     var head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -250,11 +277,28 @@
       '<div class="vtour-pop__actions">' + skipBtn + cta + '</div>';
     ensureRoot().appendChild(pop);
 
-    // Позиционирование: рядом с целью или по центру.
+    // Позиционирование: НЕ просто «под полем» (перекрывало соседние поля
+    // формы, см. фидбек) — пробуем сначала справа от цели, потом слева,
+    // и только если по горизонтали не влезает никуда — сверху/снизу с
+    // отступом побольше. По центру экрана — только когда нет цели вообще.
     if (target) {
       var r = target.getBoundingClientRect();
-      pop.style.top = Math.min(window.innerHeight - 220, r.bottom + 12) + 'px';
-      pop.style.left = Math.max(12, Math.min(window.innerWidth - 380, r.left)) + 'px';
+      var pr = pop.getBoundingClientRect();
+      var margin = 16;
+      var top, left;
+      if (r.right + margin + pr.width <= window.innerWidth) {
+        left = r.right + margin;
+        top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
+      } else if (r.left - margin - pr.width >= 0) {
+        left = r.left - margin - pr.width;
+        top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
+      } else {
+        left = Math.max(12, Math.min(window.innerWidth - pr.width - 12, r.left));
+        top = r.bottom + margin + 24;   // побольше отступ, чтобы не наезжать на следующее поле
+        if (top + pr.height > window.innerHeight - 12) top = Math.max(12, r.top - pr.height - margin);
+      }
+      pop.style.top = top + 'px';
+      pop.style.left = left + 'px';
     } else {
       pop.classList.add('vtour-pop--center');
     }
@@ -265,6 +309,7 @@
     if (nextBtn) nextBtn.addEventListener('click', function () { markDone(step.id); advance(step.id); });
     var skipEl = pop.querySelector('.vtour-skip');
     if (skipEl) skipEl.addEventListener('click', function () { advance(step.id, true); });
+    return pop;
   }
 
   function advance(afterId, skip) {

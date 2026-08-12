@@ -35,7 +35,9 @@
   position: fixed; width: 360px; max-width: calc(100vw - 24px);
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
   box-shadow: 0 12px 40px rgba(17,24,39,0.18); padding: 16px 18px; color: #111827;
+  transition: opacity 0.25s ease;
 }
+.vtour-pop.is-fading { opacity: 0; }
 .vtour-pop--center { top: 50%; left: 50%; transform: translate(-50%,-50%); }
 .vtour-pop__title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
 .vtour-pop__why { font-size: 13.5px; color: #6b7280; line-height: 1.45; margin-bottom: 12px; }
