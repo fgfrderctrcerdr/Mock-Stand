@@ -184,10 +184,12 @@
     }
 
     if (step.check && state.satisfied[step.id]) {
-      // Минимум выполнен (см. №2 фидбека) — не давим дальше рамкой и
-      // затемнением, человек сам решает, когда закончил добавлять записи.
-      // Явное продолжение — только по кнопке «Далее» в попапе.
-      showPopover(primary, step, 'satisfied');
+      // Минимум выполнен (см. №2/№3 фидбека) — не давим дальше рамкой и
+      // затемнением, и НЕ показываем ещё один плавающий попап («ещё один
+      // сайдбар», как это назвал пользователь) — вместо него компактная
+      // кнопка «Далее» прямо у формы. Человек сам решает, когда закончил
+      // добавлять записи; явное продолжение — только по клику на неё.
+      renderNextButton(step, actionTarget);
     } else {
       var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
       var pop = showPopover(primary, step, 'ok');
@@ -205,6 +207,58 @@
       }
     }
     pollActive();
+  }
+
+  // Компактная кнопка «Далее» у формы — НЕ всплывающий попап. Встаёт под
+  // левым нижним углом формы/контейнера с кнопкой действия (там, где
+  // создаются записи), а не где-то отдельно на экране. Проверяет
+  // выполнение ЖИВЬЁМ в момент клика (не только по устаревшему
+  // state.satisfied) — если список внезапно пуст (например, всё удалили
+  // за это время), не пускает дальше и объясняет простыми словами, зачем
+  // нужна хотя бы одна запись.
+  function renderNextButton(step, actionTarget) {
+    var container = actionTarget
+      ? (actionTarget.closest('form') || actionTarget.closest('.entity-form') || actionTarget.parentElement)
+      : document.querySelector('.page');
+    var rect = container ? container.getBoundingClientRect() : null;
+
+    var wrap = el('div', 'vtour-next-inline');
+    wrap.innerHTML =
+      '<span class="vtour-next-inline__hint">Минимум выполнен — можно добавить ещё</span>' +
+      '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>';
+    ensureRoot().appendChild(wrap);
+
+    if (rect) {
+      wrap.style.top = (rect.bottom + 10) + 'px';
+      wrap.style.left = rect.left + 'px';
+    } else {
+      wrap.style.bottom = '24px';
+      wrap.style.left = '24px';
+    }
+
+    wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
+      Promise.resolve(step.check(state.opts)).then(function (ok) {
+        if (ok) {
+          fadeOut(wrap);
+          markDone(step.id);
+        } else {
+          state.satisfied[step.id] = false;
+          showEmptyWarning(wrap, step);
+        }
+      });
+    });
+  }
+
+  function showEmptyWarning(anchorEl, step) {
+    if (anchorEl.parentNode && anchorEl.parentNode.querySelector('.vtour-inline-warning')) return;
+    var warn = el('div', 'vtour-inline-warning', esc(
+      step.emptyWarning || 'Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.'
+    ));
+    var r = anchorEl.getBoundingClientRect();
+    warn.style.top = (r.bottom + 8) + 'px';
+    warn.style.left = r.left + 'px';
+    ensureRoot().appendChild(warn);
+    setTimeout(function () { fadeOut(warn); }, 4500);
   }
 
   // Ведёт через реальную верхнюю навигацию: находит пункт меню с нужным
@@ -313,34 +367,31 @@
     // шагов без check() (если такие появятся).
     var cta;
     if (mode === 'route') {
-      // Если рядом реально подсвечен пункт меню (target задан) — кнопка
-      // вторична, основная подсказка — сама подсветка+стрелка на навигации.
-      // Если пункт не нашли (фолбэк, target=null) — кнопка единственный путь,
-      // делаем её основной.
-      var openCls = target ? 'vtour-btn vtour-btn--ghost' : 'vtour-btn';
-      cta = '<button class="' + openCls + ' vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
-    } else if (mode === 'satisfied') {
-      cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || 'Далее →') + '</button>';
+      // ФИДБЕК: если пункт меню реально найден и подсвечен стрелкой — кнопки
+      // быть не должно вообще. Смысл тура — научить работать с настоящим UI,
+      // а кнопка-шорткат этому прямо противоречит (в обход реального клика).
+      // Кнопка остаётся ТОЛЬКО как честный fallback, когда селектор не нашёлся
+      // и показать пользователю нечего.
+      cta = target ? '' : '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
     } else if (step.check) {
       cta = '<div class="vtour-waiting">Ждём выполнения на странице…</div>';
     } else {
       cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
     }
     var note =
-      mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' :
-      mode === 'satisfied' ? '<div class="vtour-note vtour-note--ok">Минимум выполнен — можно добавить ещё, а когда закончите, нажмите «Далее».</div>' : '';
+      mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' : '';
 
     // Пропустить — только для явно опциональных шагов (step.optional === true).
     // Сейчас это только «Роли» (когда появятся как шаг); всё остальное — либо
     // системно обязательно (подразделения/должности), либо нужно для JTBD
     // (график/локация/сотрудник/отметка/отчёт) — пропуска не даём.
     var skipBtn = step.optional ? '<button class="vtour-btn vtour-btn--ghost vtour-skip">Пропустить</button>' : '';
+    var actionsHtml = (skipBtn || cta) ? ('<div class="vtour-pop__actions">' + skipBtn + cta + '</div>') : '';
 
     pop.innerHTML =
       '<div class="vtour-pop__title">' + esc(step.title) + '</div>' +
       (step.why ? '<div class="vtour-pop__why">' + esc(step.why) + '</div>' : '') +
-      note +
-      '<div class="vtour-pop__actions">' + skipBtn + cta + '</div>';
+      note + actionsHtml;
     ensureRoot().appendChild(pop);
 
     // Позиционирование: НЕ просто «под полем» (перекрывало соседние поля

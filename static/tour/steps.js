@@ -27,6 +27,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/hrm/division_list',
     inputSelector: 'input[name="name"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Подразделения — это структура компании (цех, зал, офис). Без хотя бы одного не к чему будет привязать сотрудников на следующих шагах.',
     check: gridHasRows,
   },
   {
@@ -36,6 +37,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/hrm/job_list',
     inputSelector: 'input[name="name"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Должность — это то, кем работает сотрудник (например, «Официант»). Без неё не получится завести сотрудника.',
     check: gridHasRows,
   },
   {
@@ -45,6 +47,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/htt/schedule_list',
     inputSelector: 'input[name="name"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'График определяет, когда сотрудник должен быть на работе. Без него система не поймёт, что считать опозданием или переработкой.',
     check: gridHasRows,
   },
   {
@@ -54,6 +57,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/htt/location_list',
     inputSelector: 'input[name="name"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Локация — это место, где сотрудник отмечает приход/уход. Без неё физически негде будет отметиться.',
     check: gridHasRows,
   },
   {
@@ -63,6 +67,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/href/employee',
     inputSelector: 'input[name="full_name"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Сотрудник — это тот, кто и будет отмечаться и получать зарплату. Без него оставшиеся шаги (приглашение, отметка, отчёт) не имеют смысла.',
     check: gridHasRows,
   },
   {
@@ -72,6 +77,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/admin/users',
     inputSelector: 'input[name="phone"]',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Без приглашения у сотрудника не будет доступа к приложению — значит, физически нечем будет сделать отметку.',
     check: function () { return document.querySelectorAll('[data-invite-active="1"]').length > 0; },
   },
   {
@@ -80,6 +86,7 @@ var VERIFIX_TOUR_STEPS = [
     why: 'В реальном Verifix это делает сотрудник в мобильном приложении Verifix ID. Здесь — эмулируем.',
     route: '/vhr/htt/attendance_mark',
     selector: '[data-tour="add"]',
+    emptyWarning: 'Пока нет ни одной отметки, отчёт по часам будет пустым — в нём просто не из чего считать часы.',
     check: gridHasRows,
   },
   {
@@ -88,6 +95,7 @@ var VERIFIX_TOUR_STEPS = [
     why: 'Вот она — ценность системы для клиента, не просто заведённая структура.',
     route: '/vhr/htt/timesheet_report',
     selector: null,   // это финальный шаг — просвещаем, не просим действия на элементе
+    emptyWarning: 'Отчёт пока пуст — вернитесь на шаг «Отметки» и отметьте хотя бы один приход/уход, тогда здесь появятся часы.',
     check: gridHasRows,
   },
 ];
