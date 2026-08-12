@@ -121,6 +121,7 @@
   function render() {
     var root = ensureRoot();
     root.innerHTML = '';
+    state.activeVisuals = [];
     clearForcedOpen();
     clearInjectedNextButton();
     if (state.opts.hidden) return;
@@ -186,18 +187,14 @@
       if (location.pathname === '/' || state.justAdvanced) renderNavGuide(step);
       return;
     }
-    if (step.selector && !actionTarget) {
-      // На нужном экране, но элемент не найден (селектор уточняется под стенд).
-      showPopover(null, step, 'notfound');
-      return;
-    }
 
-    var primary = inputTarget || actionTarget;
-
-    // Синхронная предпроверка — избегаем «мигания» затемнения на каждой
-    // загрузке страницы, когда минимум уже выполнен (see below: без этого
-    // затемнение на долю секунды появлялось и сразу гасло при каждом
-    // повторном заходе на уже пройденный шаг).
+    // Синхронная предпроверка satisfied — ДО ветки "элемент не найден".
+    // QA-фикс: на шаге «инвайт» selector (`[data-tour="add"]`) стоит
+    // внутри цикла по неприглашённым сотрудникам — когда приглашён и
+    // активирован последний, кнопки-заглушки на странице не остаётся
+    // вообще, actionTarget становится null, и раньше это ошибочно
+    // показывало "элемент не найден на экране" вместо кнопки "Далее",
+    // хотя минимум уже давно выполнен. Проверяем satisfied ПЕРВЫМ.
     if (step.check) {
       try {
         var immediate = step.check(state.opts);
@@ -206,27 +203,36 @@
     }
 
     if (step.check && state.satisfied[step.id]) {
-      // Минимум выполнен (см. №2/№3 фидбека) — не давим дальше рамкой и
-      // затемнением, и НЕ показываем ещё один плавающий попап («ещё один
-      // сайдбар», как это назвал пользователь) — вместо него компактная
-      // кнопка «Далее» прямо у формы. Человек сам решает, когда закончил
-      // добавлять записи; явное продолжение — только по клику на неё.
+      // Минимум выполнен (см. более ранний фидбек) — не давим дальше
+      // рамкой и затемнением, и НЕ показываем всплывающий попап — вместо
+      // него компактная кнопка «Далее» прямо у формы (renderNextButton
+      // сам умеет работать даже без actionTarget — см. её fallback).
       renderNextButton(step, actionTarget);
-    } else {
-      var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
-      var pop = showPopover(primary, step, 'ok');
+      pollActive();
+      return;
+    }
 
-      // По фокусу на подсвеченное поле — убираем и затемнение, и текст
-      // подсказки; рамка на поле и стрелка к кнопке остаются как тихий
-      // ориентир, куда жать после заполнения.
-      if (inputTarget && visuals) {
-        var onFocus = function () {
-          fadeOut(visuals.dim);
-          fadeOut(pop);
-          inputTarget.removeEventListener('focus', onFocus);
-        };
-        inputTarget.addEventListener('focus', onFocus);
-      }
+    if (step.selector && !actionTarget) {
+      // На нужном экране, но элемент не найден (селектор уточняется под стенд).
+      showPopover(null, step, 'notfound');
+      pollActive();
+      return;
+    }
+
+    var primary = inputTarget || actionTarget;
+    var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
+    var pop = showPopover(primary, step, 'ok');
+
+    // По фокусу на подсвеченное поле — убираем и затемнение, и текст
+    // подсказки; рамка на поле и стрелка к кнопке остаются как тихий
+    // ориентир, куда жать после заполнения.
+    if (inputTarget && visuals) {
+      var onFocus = function () {
+        fadeOut(visuals.dim);
+        fadeOut(pop);
+        inputTarget.removeEventListener('focus', onFocus);
+      };
+      inputTarget.addEventListener('focus', onFocus);
     }
     pollActive();
   }
@@ -292,26 +298,67 @@
     }
   }
 
+  // Реестр активных визуалов тура — нужен, чтобы пересчитывать позиции по
+  // scroll (см. QA-фикс №1: рамка/затемнение/попап/стрелка считались
+  // position:fixed-координатами ОДНОКРАТНО в момент рендера, а слушателей
+  // на scroll не было вообще — на любой прокручиваемой странице подсветка
+  // отрывалась от реального элемента). Очищается в начале каждого render().
+  state.activeVisuals = [];
+
+  function registerVisual(entry) { state.activeVisuals.push(entry); }
+
+  function positionBox(node, target, pad) {
+    var r = target.getBoundingClientRect();
+    node.style.top = (r.top - pad) + 'px';
+    node.style.left = (r.left - pad) + 'px';
+    node.style.width = (r.width + pad * 2) + 'px';
+    node.style.height = (r.height + pad * 2) + 'px';
+  }
+
+  function repositionOverlay() {
+    if (!state.activeVisuals.length) return;
+    var root = document.getElementById('vtour-root');
+    if (!root) return;
+    state.activeVisuals.forEach(function (v) {
+      if (!v.target || !document.body.contains(v.target)) return;   // элемент исчез — не трогаем, следующий render() всё пересоздаст
+      if (v.type === 'box') {
+        positionBox(v.el, v.target, v.pad);
+      } else if (v.type === 'arrow') {
+        var fresh = drawArrow(root, v.target, v.target2);
+        v.el.remove();
+        v.el = fresh;
+      } else if (v.type === 'pop') {
+        positionPopover(v.el, v.target);
+      }
+    });
+  }
+
+  var _scrollRaf = null;
+  window.addEventListener('scroll', function () {
+    if (_scrollRaf) return;
+    _scrollRaf = requestAnimationFrame(function () { _scrollRaf = null; repositionOverlay(); });
+  }, { passive: true, capture: true });   // capture: true — ловит scroll и на вложенных прокручиваемых контейнерах, не только на окне
+
   function highlight(target, arrowTo, noDim) {
     var root = ensureRoot();
-    var r = target.getBoundingClientRect();
 
     var ring = el('div', 'vtour-highlight-ring');
-    ring.style.top = (r.top - 6) + 'px';
-    ring.style.left = (r.left - 6) + 'px';
-    ring.style.width = (r.width + 12) + 'px';
-    ring.style.height = (r.height + 12) + 'px';
+    positionBox(ring, target, 6);
     root.appendChild(ring);
+    registerVisual({ type: 'box', el: ring, target: target, pad: 6 });
 
     var dim = null;
     if (!noDim) {
       dim = el('div', 'vtour-highlight-dim');
-      dim.style.top = ring.style.top; dim.style.left = ring.style.left;
-      dim.style.width = ring.style.width; dim.style.height = ring.style.height;
+      positionBox(dim, target, 6);
       root.appendChild(dim);
+      registerVisual({ type: 'box', el: dim, target: target, pad: 6 });
     }
 
-    if (arrowTo) drawArrow(root, target, arrowTo);
+    if (arrowTo) {
+      var svg = drawArrow(root, target, arrowTo);
+      registerVisual({ type: 'arrow', el: svg, target: target, target2: arrowTo });
+    }
 
     try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
 
@@ -362,6 +409,7 @@
     head.setAttribute('class', 'vtour-arrow-head');
     svg.appendChild(head);
     root.appendChild(svg);
+    return svg;
   }
 
   function showPopover(target, step, mode) {
@@ -401,30 +449,11 @@
       note + actionsHtml;
     ensureRoot().appendChild(pop);
 
-    // Позиционирование: НЕ просто «под полем» (перекрывало соседние поля
-    // формы, см. фидбек) — пробуем сначала справа от цели, потом слева,
-    // и только если по горизонтали не влезает никуда — сверху/снизу с
-    // отступом побольше. По центру экрана — только когда нет цели вообще.
     if (target) {
-      var r = target.getBoundingClientRect();
-      var pr = pop.getBoundingClientRect();
-      var margin = 16;
-      var top, left;
-      if (r.right + margin + pr.width <= window.innerWidth) {
-        left = r.right + margin;
-        top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
-      } else if (r.left - margin - pr.width >= 0) {
-        left = r.left - margin - pr.width;
-        top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
-      } else {
-        left = Math.max(12, Math.min(window.innerWidth - pr.width - 12, r.left));
-        top = r.bottom + margin + 24;   // побольше отступ, чтобы не наезжать на следующее поле
-        if (top + pr.height > window.innerHeight - 12) top = Math.max(12, r.top - pr.height - margin);
-      }
-      pop.style.top = top + 'px';
-      pop.style.left = left + 'px';
+      positionPopover(pop, target);
+      registerVisual({ type: 'pop', el: pop, target: target });
     } else {
-      pop.classList.add('vtour-pop--center');
+      pop.classList.add('vtour-pop--center');   // фиксированный центр экрана — scroll не должен на него влиять, не регистрируем
     }
 
     var openBtn = pop.querySelector('.vtour-open');
@@ -434,6 +463,32 @@
     var skipEl = pop.querySelector('.vtour-skip');
     if (skipEl) skipEl.addEventListener('click', function () { advance(step.id, true); });
     return pop;
+  }
+
+  // Позиционирование попапа — вынесено отдельно от showPopover(), чтобы
+  // одну и ту же логику можно было повторно вызвать при пересчёте на
+  // scroll (см. repositionOverlay). Пробует справа от цели, потом слева,
+  // и только если по горизонтали не влезает никуда — сверху/снизу с
+  // увеличенным отступом (не просто «под полем» — перекрывало соседние
+  // поля формы, см. более ранний фидбек).
+  function positionPopover(pop, target) {
+    var r = target.getBoundingClientRect();
+    var pr = pop.getBoundingClientRect();
+    var margin = 16;
+    var top, left;
+    if (r.right + margin + pr.width <= window.innerWidth) {
+      left = r.right + margin;
+      top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
+    } else if (r.left - margin - pr.width >= 0) {
+      left = r.left - margin - pr.width;
+      top = Math.min(window.innerHeight - pr.height - 12, Math.max(12, r.top));
+    } else {
+      left = Math.max(12, Math.min(window.innerWidth - pr.width - 12, r.left));
+      top = r.bottom + margin + 24;
+      if (top + pr.height > window.innerHeight - 12) top = Math.max(12, r.top - pr.height - margin);
+    }
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
   }
 
   function advance(afterId, skip) {

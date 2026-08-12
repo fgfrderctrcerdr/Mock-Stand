@@ -11,8 +11,9 @@
       <tr data-row-id="{{ p.id }}">
         <td>{{ p.name }}</td>
         <td>
-          <form method="post" action="/vhr/hrm/job_list/{{ p.id }}/delete" style="display:inline">
-            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          <form method="post" action="/vhr/hrm/job_list/{{ p.id }}/delete" style="display:inline"
+                data-confirm="Удалить должность «{{ p.name }}»?">
+            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
           </form>
         </td>
       </tr>
@@ -24,8 +25,8 @@
 
   <form method="post" action="/vhr/hrm/job_list/create" class="entity-form">
     <div class="field">
-      <label>Название должности</label>
-      <input type="text" name="name" required placeholder="Официант" />
+      <label for="jobName">Название должности</label>
+      <input type="text" id="jobName" name="name" required placeholder="Официант" />
     </div>
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить должность</button>
   </form>

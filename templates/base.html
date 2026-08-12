@@ -17,7 +17,7 @@
     <nav class="topnav">
       {% for section in menu %}
       <div class="topnav__item {{ 'is-active-section' if section.label == current_section }}">
-        <span class="topnav__label">{{ section.label }}</span>
+        <button type="button" class="topnav__label" aria-expanded="false">{{ section.label }}</button>
         <div class="topnav__dropdown {{ 'topnav__dropdown--cols' if section.columns|length > 1 else '' }}">
           {% for col in section.columns %}
           <div class="topnav__col">
@@ -39,8 +39,51 @@
   </header>
 
   <main class="content-full">
+    {% if error %}
+    <div class="page-error-banner">{{ error }}</div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+    // Клик по вкладке верхнего меню — раскрытие/закрытие дропдауна.
+    // QA-фикс: раньше только CSS :hover на <div> — недоступно с клавиатуры
+    // и на тач-устройствах (нет способа открыть меню без мыши). Hover
+    // остаётся как enhancement для десктопа (см. styles.css), клик — как
+    // основной, работающий везде способ.
+    (function () {
+      var items = document.querySelectorAll('.topnav__item');
+      function closeAll() {
+        items.forEach(function (it) {
+          it.classList.remove('is-open');
+          var b = it.querySelector('.topnav__label');
+          if (b) b.setAttribute('aria-expanded', 'false');
+        });
+      }
+      items.forEach(function (item) {
+        var btn = item.querySelector('.topnav__label');
+        if (!btn) return;
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var willOpen = !item.classList.contains('is-open');
+          closeAll();
+          if (willOpen) { item.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); }
+        });
+      });
+      document.addEventListener('click', closeAll);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+    })();
+
+    // Подтверждение перед удалением (QA-фикс) — раньше один клик "Удалить"
+    // сразу отправлял форму без возможности отмены. data-confirm задаётся
+    // в каждом шаблоне на самой форме удаления (см. division_list.html и т.д.).
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (f && f.matches && f.matches('form[data-confirm]') && !window.confirm(f.getAttribute('data-confirm'))) {
+        e.preventDefault();
+      }
+    });
+  </script>
 
   <script src="/static/tour/verifix-tour.js"></script>
   <script src="/static/tour/steps.js"></script>

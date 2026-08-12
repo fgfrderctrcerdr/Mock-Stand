@@ -8,15 +8,15 @@
   <form method="post" action="/vhr/htt/attendance_mark/create" class="entity-form">
     <div class="field-row">
       <div class="field">
-        <label>Сотрудник</label>
-        <select name="employee_id" required>
+        <label for="markEmployee">Сотрудник</label>
+        <select id="markEmployee" name="employee_id" required>
           <option value="">— выберите —</option>
           {% for e in employees %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
         </select>
       </div>
       <div class="field">
-        <label>Тип отметки</label>
-        <select name="kind">
+        <label for="markKind">Тип отметки</label>
+        <select id="markKind" name="kind">
           <option value="in">Приход</option>
           <option value="out">Уход</option>
         </select>

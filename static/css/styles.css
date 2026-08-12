@@ -51,7 +51,12 @@ body {
   padding: 0 12px; cursor: pointer;
 }
 .topnav__item.is-active-section { background: rgba(255,255,255,0.06); }
-.topnav__label { color: #cbd5e1; font-size: 13.5px; font-weight: 500; }
+.topnav__label {
+  /* было <span>, теперь <button> (см. QA-фикс: клавиатура/тач не могли
+     открыть :hover-меню) — сбрасываем браузерные стили кнопки. */
+  background: none; border: none; font: inherit; cursor: pointer; padding: 0; margin: 0;
+  color: #cbd5e1; font-size: 13.5px; font-weight: 500;
+}
 .topnav__item:hover .topnav__label { color: #fff; }
 .topnav__item.is-active-section .topnav__label { color: #fff; font-weight: 600; }
 
@@ -63,6 +68,7 @@ body {
 }
 .topnav__dropdown--cols { display: none; min-width: 600px; }
 .topnav__item:hover .topnav__dropdown { display: flex; gap: 22px; }
+.topnav__item.is-open .topnav__dropdown { display: flex; gap: 22px; }   /* клик — основной способ, см. QA-фикс №2 */
 .topnav__col { min-width: 180px; padding: 0 6px; }
 .topnav__col-title {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
@@ -112,6 +118,8 @@ body {
 }
 .field { margin-bottom: 14px; flex: 1; }
 .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+fieldset.field { border: none; padding: 0; margin: 0 0 14px; }
+fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; padding: 0; }
 .field input, .field select {
   width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
   font-family: var(--font); font-size: 14px; background: #fff;
@@ -127,7 +135,9 @@ body {
 .btn--primary:hover { background: var(--primary-hover); }
 .btn--primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
 .btn--ghost { background: transparent; color: var(--text-muted); }
-.btn--ghost:hover { color: #dc2626; }
+.btn--ghost:hover { color: var(--text); }   /* QA-фикс №9: было красным для ЛЮБОЙ ghost-кнопки, включая недеструктивные ("Найти", "Симулировать принятие") — ложный сигнал опасности */
+.btn--danger { background: transparent; color: var(--text-muted); border: none; }
+.btn--danger:hover { color: #dc2626; }   /* красный ховер оставлен ТОЛЬКО для реально деструктивных действий (удаление) */
 .btn--sm { padding: 5px 10px; font-size: 12px; }
 
 /* Дерево подразделений с drag-and-drop (перенесено из web_onboarding) */
@@ -166,3 +176,15 @@ body {
 .status-pill--muted { background: var(--surface-2); color: var(--text-muted); }
 .status-pill--warn { background: #fef3c7; color: #92400e; }
 .status-pill--ok { background: #d1fae5; color: #065f46; }
+
+/* Банер ошибки серверной валидации (QA-фикс №4) — единый для всех
+   страниц, подключается через base.html, не через каждый шаблон. */
+.page-error-banner {
+  max-width: 900px; margin: 0 auto 20px;
+  background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b;
+  border-radius: 10px; padding: 12px 16px; font-size: 14px;
+}
+
+/* Клавиатурная альтернатива drag-and-drop дерева (QA-фикс №11) */
+.tree-node__parent-label { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+.tree-node__parent-select { font-size: 12px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; max-width: 160px; }

@@ -20,6 +20,7 @@ Organization при первом заходе.
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
@@ -40,8 +41,20 @@ from models import (
     TelemetryEvent,
 )
 
+from contextlib import asynccontextmanager
+
 BASE_DIR = Path(__file__).parent
-app = FastAPI(title="Verifix Mock-Stand")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # QA-фикс №18: @app.on_event("startup") устарел в текущей версии FastAPI,
+    # официально рекомендован lifespan-контекстменеджер.
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Verifix Mock-Stand", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
@@ -53,11 +66,6 @@ def name_by_id(items, item_id):
 
 
 templates.env.globals["name_by_id"] = name_by_id
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
 
 
 # ============================================================
@@ -116,7 +124,16 @@ def base_ctx(request: Request, page_title: str):
         "current_path": request.url.path,
         "current_section": current_section,
         "org_id": request.state.org.id,
+        "error": request.query_params.get("error"),   # QA-фикс №4 — банер ошибки серверной валидации
     }
+
+
+def redirect_with_error(path: str, message: str) -> RedirectResponse:
+    """QA-фикс №4: сервер раньше принимал всё как есть (отрицательный
+    радиус геозоны, график 18:00→09:00 без единого рабочего дня и т.п.).
+    При невалидных данных редиректим назад на список с ?error=... —
+    список читает его в base_ctx() и показывает банер (см. шаблоны)."""
+    return RedirectResponse(url=f"{path}?error={quote(message)}", status_code=303)
 
 
 # ============================================================
@@ -185,7 +202,9 @@ def division_list(request: Request):
 
 
 @app.post("/vhr/hrm/division_list/create")
-def division_create(request: Request, name: str = Form(...), parent_id: str = Form("")):
+def division_create(request: Request, name: str = Form(""), parent_id: str = Form("")):
+    if not name.strip():
+        return redirect_with_error("/vhr/hrm/division_list", "Название подразделения не может быть пустым.")
     db = request.state.db
     org = request.state.org
     d = Division(organization_id=org.id, name=name.strip(), parent_id=parent_id or None)
@@ -243,7 +262,9 @@ def job_list(request: Request):
 
 
 @app.post("/vhr/hrm/job_list/create")
-def job_create(request: Request, name: str = Form(...)):
+def job_create(request: Request, name: str = Form("")):
+    if not name.strip():
+        return redirect_with_error("/vhr/hrm/job_list", "Название должности не может быть пустым.")
     db = request.state.db
     org = request.state.org
     p = Position(organization_id=org.id, name=name.strip())
@@ -278,7 +299,11 @@ def location_list(request: Request):
 
 
 @app.post("/vhr/htt/location_list/create")
-def location_create(request: Request, name: str = Form(...), lat: float = Form(...), lng: float = Form(...), accuracy: float = Form(50), address: str = Form("")):
+def location_create(request: Request, name: str = Form(""), lat: float = Form(...), lng: float = Form(...), accuracy: float = Form(50), address: str = Form("")):
+    if not name.strip():
+        return redirect_with_error("/vhr/htt/location_list", "Название локации не может быть пустым.")
+    if accuracy <= 0:
+        return redirect_with_error("/vhr/htt/location_list", "Радиус зоны отметок должен быть больше нуля.")
     db = request.state.db
     org = request.state.org
     l = Location(organization_id=org.id, name=name.strip(), address=address, lat=lat, lng=lng, accuracy=accuracy)
@@ -315,13 +340,34 @@ def schedule_list(request: Request):
 @app.post("/vhr/htt/schedule_list/create")
 def schedule_create(
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
     kind: str = Form("regular"),
     week_days: list[str] = Form([]),
     start_time: str = Form(""),
     end_time: str = Form(""),
     norm_hours: str = Form(""),
 ):
+    if not name.strip():
+        return redirect_with_error("/vhr/htt/schedule_list", "Название графика не может быть пустым.")
+    if kind not in ("regular", "hourly"):
+        return redirect_with_error("/vhr/htt/schedule_list", "Неизвестный вид графика.")
+
+    if kind == "regular":
+        if not week_days:
+            return redirect_with_error("/vhr/htt/schedule_list", "У обычного графика должен быть хотя бы один рабочий день.")
+        if not start_time or not end_time:
+            return redirect_with_error("/vhr/htt/schedule_list", "Укажите начало и конец рабочего дня.")
+        if start_time >= end_time:
+            return redirect_with_error("/vhr/htt/schedule_list", "Конец рабочего дня должен быть позже начала (ночные смены через полночь — отдельный случай, здесь не поддержан).")
+
+    if kind == "hourly":
+        try:
+            norm_val = float(norm_hours)
+        except ValueError:
+            norm_val = 0
+        if norm_val <= 0:
+            return redirect_with_error("/vhr/htt/schedule_list", "Норма часов должна быть больше нуля.")
+
     db = request.state.db
     org = request.state.org
     s = Schedule(
@@ -370,12 +416,25 @@ def employee_list(request: Request):
 @app.post("/vhr/href/employee/create")
 def employee_create(
     request: Request,
-    full_name: str = Form(...),
+    full_name: str = Form(""),
     division_id: str = Form(""),
     position_id: str = Form(""),
     schedule_id: str = Form(""),
     location_id: str = Form(""),
 ):
+    # QA-фикс №10: подзаголовок формы обещает "свяжите с подразделением/
+    # должностью/графиком/локацией — это JTBD №1", но раньше обязательным
+    # было только ФИО — можно было создать сотрудника, ни с чем не
+    # связанного, что тихо ломает смысл JTBD дальше по цепочке. Раз весь
+    # остальной тур принудительно обязателен — здесь тоже, для
+    # согласованности.
+    if not full_name.strip():
+        return redirect_with_error("/vhr/href/employee", "ФИО сотрудника не может быть пустым.")
+    if not (division_id and position_id and schedule_id and location_id):
+        return redirect_with_error(
+            "/vhr/href/employee",
+            "Заполните все связи (подразделение, должность, график, локация) — без них сотрудник не сможет отметиться."
+        )
     db = request.state.db
     org = request.state.org
     e = Employee(
@@ -422,7 +481,9 @@ def users_list(request: Request):
 
 
 @app.post("/vhr/admin/users/{employee_id}/invite")
-def users_invite(request: Request, employee_id: str, phone: str = Form(...)):
+def users_invite(request: Request, employee_id: str, phone: str = Form("")):
+    if not phone.strip():
+        return redirect_with_error("/vhr/admin/users", "Номер телефона не может быть пустым.")
     db = request.state.db
     org = request.state.org
     emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()

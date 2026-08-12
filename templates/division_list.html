@@ -10,23 +10,35 @@
     <div class="tree-node" draggable="true" data-row-id="{{ d.id }}" style="margin-left:{{ depth * 26 }}px">
       <span class="tree-node__grip">⠿</span>
       <span class="tree-node__name">{{ d.name }}</span>
-      <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline">
-        <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+      <label class="tree-node__parent-label" for="parent-select-{{ d.id }}">Родитель:</label>
+      <select class="tree-node__parent-select" id="parent-select-{{ d.id }}" data-row-id="{{ d.id }}"
+              aria-label="Родительское подразделение для «{{ d.name }}» (альтернатива drag-and-drop)">
+        <option value="" {{ 'selected' if not d.parent_id else '' }}>— верхний уровень —</option>
+        {% for other in divisions %}
+        {% if other.id != d.id %}
+        <option value="{{ other.id }}" {{ 'selected' if d.parent_id == other.id else '' }}>{{ other.name }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+      <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline"
+            data-confirm="Удалить «{{ d.name }}»? Дочерние подразделения (если есть) будут перепривязаны на уровень выше.">
+        <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
       </form>
     </div>
     {% else %}
     <p class="datatable__empty">Пока не добавлено</p>
     {% endfor %}
   </div>
+  <p class="field__hint">Перетащите строку на другую мышью — или выберите родителя в списке рядом (клавиатурная альтернатива drag-and-drop).</p>
 
   <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
     <div class="field">
-      <label>Название подразделения</label>
-      <input type="text" name="name" required placeholder="Кухня" />
+      <label for="divName">Название подразделения</label>
+      <input type="text" id="divName" name="name" required placeholder="Кухня" />
     </div>
     <div class="field">
-      <label>Родительское подразделение (опционально)</label>
-      <select name="parent_id">
+      <label for="divParent">Родительское подразделение (опционально)</label>
+      <select id="divParent" name="parent_id">
         <option value="">— верхний уровень —</option>
         {% for d in divisions %}
         <option value="{{ d.id }}">{{ d.name }}</option>
@@ -83,6 +95,13 @@
     e.preventDefault();
     rootZone.classList.remove('drop-target');
     if (draggedId) reparent(draggedId, '');
+  });
+
+  // Клавиатурная альтернатива drag-and-drop (QA-фикс №11) — тот же
+  // reparent(), просто триггер не drop, а change у select.
+  tree.querySelectorAll('.tree-node__parent-select').forEach(function (sel) {
+    sel.addEventListener('click', function (e) { e.stopPropagation(); });   // не начинать drag при клике на select
+    sel.addEventListener('change', function () { reparent(sel.dataset.rowId, sel.value); });
   });
 })();
 </script>

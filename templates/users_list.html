@@ -14,7 +14,8 @@
         <td>
           {% if e.invite_status == 'none' %}
           <form method="post" action="/vhr/admin/users/{{ e.id }}/invite" style="display:flex;gap:6px;">
-            <input type="tel" name="phone" placeholder="+998 90 123 45 67" required style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;" />
+            <input type="tel" name="phone" id="phone-{{ e.id }}" aria-label="Телефон сотрудника {{ e.full_name }}"
+                   placeholder="+998 90 123 45 67" required style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;" />
             <button class="btn btn--primary btn--sm" type="submit" data-tour="add">Пригласить</button>
           </form>
           {% else %}

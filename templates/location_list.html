@@ -13,8 +13,9 @@
         <td>{{ l.address or (l.lat|string + ', ' + l.lng|string) }}</td>
         <td>{{ l.accuracy }}</td>
         <td>
-          <form method="post" action="/vhr/htt/location_list/{{ l.id }}/delete" style="display:inline">
-            <button class="btn btn--ghost btn--sm" type="submit">Удалить</button>
+          <form method="post" action="/vhr/htt/location_list/{{ l.id }}/delete" style="display:inline"
+                data-confirm="Удалить локацию «{{ l.name }}»?">
+            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
           </form>
         </td>
       </tr>
@@ -25,10 +26,10 @@
   </table>
 
   <form method="post" action="/vhr/htt/location_list/create" class="entity-form" id="locForm">
-    <div class="field"><label>Название локации</label><input type="text" name="name" required placeholder="Кафе на Мустакиллик" /></div>
+    <div class="field"><label for="locName">Название локации</label><input type="text" id="locName" name="name" required placeholder="Кафе на Мустакиллик" /></div>
 
     <div class="field">
-      <label>Адрес</label>
+      <label for="locAddress">Адрес</label>
       <div class="field-row" style="align-items:flex-start">
         <input type="text" id="locAddress" name="address" placeholder="Введите адрес и нажмите «Найти»" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;" />
         <button type="button" id="locFind" class="btn btn--ghost" style="flex:none">Найти</button>
@@ -38,12 +39,12 @@
 
     <div id="locMap" style="height:320px;border-radius:10px;border:1.5px solid var(--border);margin-bottom:14px;"></div>
 
-    <input type="hidden" name="lat" id="locLat" required />
-    <input type="hidden" name="lng" id="locLng" required />
+    <input type="hidden" name="lat" id="locLat" />
+    <input type="hidden" name="lng" id="locLng" />
 
     <div class="field">
-      <label>Радиус зоны, м</label>
-      <input type="number" name="accuracy" id="locAccuracy" value="50" style="max-width:200px" />
+      <label for="locAccuracy">Радиус зоны, м</label>
+      <input type="number" name="accuracy" id="locAccuracy" value="50" min="1" style="max-width:200px" />
     </div>
 
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить локацию</button>
@@ -76,7 +77,12 @@
   marker.on('dragend', function () { var p = marker.getLatLng(); setPoint(p.lat, p.lng, true); });
 
   document.getElementById('locAccuracy').addEventListener('input', function () {
-    circle.setRadius(Number(this.value) || 50);
+    // QA-фикс №16: было `Number(this.value) || 50` — для значения 0 (валидное
+    // с точки зрения JS, но невалидное для нас) `0 || 50` даёт 50, то есть
+    // превью показывало 50, а сохранялось бы 0 (расхождение preview/saved).
+    // Теперь явная проверка на положительное число, без ложного fallback.
+    var v = Number(this.value);
+    if (v > 0) circle.setRadius(v);
   });
 
   function forwardGeocode() {
