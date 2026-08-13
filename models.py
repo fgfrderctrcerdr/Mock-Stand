@@ -41,6 +41,15 @@ class Organization(Base):
     token = Column(String, unique=True, index=True, default=gen_token)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
+    # Профиль компании — портировано с первого шага старого концепта
+    # (web_onboarding, "welcome → role → needs → company"), см. запрос
+    # Vladimir после пилотного теста. industry управляет типовыми
+    # подсказками подразделений/должностей (см. menu.py DIVISION_/
+    # POSITION_SUGGESTIONS в main.py).
+    company_name = Column(String, nullable=True)
+    industry = Column(String, nullable=True)
+    admin_role = Column(String, nullable=True)
+
     divisions = relationship("Division", back_populates="organization", cascade="all, delete-orphan")
     positions = relationship("Position", back_populates="organization", cascade="all, delete-orphan")
     schedules = relationship("Schedule", back_populates="organization", cascade="all, delete-orphan")

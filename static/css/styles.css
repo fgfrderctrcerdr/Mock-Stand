@@ -34,6 +34,7 @@ body {
   gap: 24px;
 }
 .topbar__brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #fff; letter-spacing: 0.02em; }
+.topbar__brand-link { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
 .topbar__logo {
   width: 26px; height: 26px; border-radius: 6px; background: var(--primary);
   color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px;
@@ -195,3 +196,13 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
   font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: var(--font);
 }
 .topbar__reset:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+/* Чипы типовых подразделений/должностей по сфере (портировано из web_onboarding) */
+.suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.suggestions__label { font-size: 13px; color: var(--text-muted); margin-right: 4px; }
+.chip {
+  background: var(--primary-soft); color: var(--primary-hover); border: 1px solid rgba(37,99,235,0.25);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: var(--font);
+}
+.chip:hover { background: #dbeafe; }

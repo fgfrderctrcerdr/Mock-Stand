@@ -31,6 +31,19 @@
   </div>
   <p class="field__hint">Перетащите строку на другую мышью — или выберите родителя в списке рядом (клавиатурная альтернатива drag-and-drop).</p>
 
+  {% if suggestions %}
+  <div class="suggestions">
+    <span class="suggestions__label">Типовые для вашей сферы:</span>
+    {% for s in suggestions %}
+    <form method="post" action="/vhr/hrm/division_list/create" style="display:inline">
+      <input type="hidden" name="name" value="{{ s }}" />
+      <input type="hidden" name="parent_id" value="" />
+      <button type="submit" class="chip">+ {{ s }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
     <div class="field">
       <label for="divName">Название подразделения</label>

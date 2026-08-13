@@ -19,7 +19,21 @@ function gridHasRows() {
   return document.querySelectorAll('[data-row-id]').length > 0;
 }
 
+function companyProfileSet() {
+  return !!document.querySelector('[data-company-set]');
+}
+
 var VERIFIX_TOUR_STEPS = [
+  {
+    id: 'company',
+    title: 'Расскажите о компании',
+    why: 'Название, сфера деятельности и ваша роль — это подберёт типовые подразделения и должности под вас.',
+    route: '/',
+    inputSelector: 'input[name="company_name"]',
+    selector: '[data-tour="add"]',
+    check: companyProfileSet,
+    emptyWarning: 'Заполните название компании, сферу деятельности и свою роль — без этого нельзя продолжить.',
+  },
   {
     id: 'divisions',
     title: 'Создайте подразделения',

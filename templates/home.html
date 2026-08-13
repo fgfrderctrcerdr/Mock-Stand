@@ -1,10 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
+{% if company_name and industry and admin_role %}
+<div data-company-set="1" style="display:none"></div>
+{% endif %}
 <div class="page">
-  <h1 class="page__title">Добро пожаловать</h1>
-  <p class="page__subtitle">
-    Это стартовый экран песочницы — как обычно бывает при первом входе в систему.
-    Настройку начнём через верхнее меню, а не автоматическим переходом в форму.
-  </p>
+  <h1 class="page__title">Расскажите о компании</h1>
+  <p class="page__subtitle">Эти данные подберут типовые подразделения и должности под вашу сферу — не придётся заводить всё с нуля.</p>
+
+  <form method="post" action="/" class="entity-form">
+    <div class="field">
+      <label for="companyName">Название компании</label>
+      <input type="text" id="companyName" name="company_name" required placeholder="Например, GrandPharm" value="{{ company_name }}" />
+    </div>
+
+    <div class="field">
+      <label for="companyIndustry">Сфера деятельности</label>
+      <select id="companyIndustry" name="industry" required>
+        <option value="" disabled {{ 'selected' if not industry else '' }}>Выберите сферу…</option>
+        {% for key, label in industries %}
+        <option value="{{ key }}" {{ 'selected' if industry == key else '' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="field__hint">Подберём типовые должности и подразделения для этой сферы.</p>
+    </div>
+
+    <div class="field">
+      <label for="companyAdminRole">Кем вы являетесь в компании?</label>
+      <select id="companyAdminRole" name="admin_role" required>
+        <option value="" disabled {{ 'selected' if not admin_role else '' }}>Выберите роль…</option>
+        {% for key, label in admin_roles %}
+        <option value="{{ key }}" {{ 'selected' if admin_role == key else '' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="field__hint">Это метаданные — на настройку не влияет, но поможет понять, кто работает с системой.</p>
+    </div>
+
+    <button class="btn btn--primary" type="submit" data-tour="add">Сохранить и продолжить</button>
+  </form>
 </div>
 {% endblock %}

@@ -45,6 +45,51 @@ from contextlib import asynccontextmanager
 
 BASE_DIR = Path(__file__).parent
 
+# Портировано из старого standalone-концепта (web_onboarding/static/i18n.js,
+# app.js) по просьбе Vladimir после пилотного теста с CPO — тексты и набор
+# сфер/ролей там уже проверены, не придумываю заново.
+
+INDUSTRIES = [
+    ("retail", "Розница и торговля"),
+    ("food", "Общепит и HoReCa"),
+    ("it", "IT и услуги"),
+    ("manuf", "Производство"),
+    ("edu", "Образование"),
+    ("health", "Медицина"),
+    ("other", "Другое"),
+]
+
+ADMIN_ROLES = [
+    ("owner", "Владелец бизнеса"),
+    ("hr", "HR-менеджер"),
+    ("lead", "Руководитель отдела"),
+    ("fin", "Бухгалтер / финансы"),
+]
+
+# Типовые подразделения/должности по сфере — как «Back of House / Front of
+# House» в 7shifts. Показываются чипами на страницах Подразделения/Должности,
+# клик по чипу сразу создаёт запись (см. соответствующие шаблоны).
+DIVISION_SUGGESTIONS = {
+    "retail": ["Продажи", "Склад", "Администрация"],
+    "food": ["Кухня", "Зал", "Администрация"],
+    "it": ["Разработка", "Продажи", "Администрация"],
+    "manuf": ["Производство", "Склад", "Администрация"],
+    "edu": ["Учебная часть", "Администрация"],
+    "health": ["Приём", "Лаборатория", "Администрация"],
+    "other": ["Основной отдел", "Администрация"],
+}
+
+POSITION_SUGGESTIONS = {
+    "retail": ["Продавец", "Кассир", "Администратор", "Менеджер", "Кладовщик"],
+    "food": ["Официант", "Повар", "Бариста", "Хостес", "Администратор"],
+    "it": ["Разработчик", "Тестировщик", "Дизайнер", "Менеджер проекта", "DevOps"],
+    "manuf": ["Оператор", "Мастер", "Технолог", "Кладовщик", "Контролёр ОТК"],
+    "edu": ["Преподаватель", "Методист", "Администратор", "Ассистент"],
+    "health": ["Врач", "Медсестра", "Администратор", "Лаборант"],
+    "other": ["Менеджер", "Специалист", "Ассистент", "Администратор"],
+}
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -162,8 +207,40 @@ def redirect_with_error(path: str, message: str) -> RedirectResponse:
 @app.get("/")
 def root(request: Request):
     log_event(request, "page_view")
+    org = request.state.org
     ctx = base_ctx(request, "Главная")
+    ctx.update(
+        industries=INDUSTRIES,
+        admin_roles=ADMIN_ROLES,
+        company_name=org.company_name or "",
+        industry=org.industry or "",
+        admin_role=org.admin_role or "",
+    )
     return templates.TemplateResponse(request, "home.html", ctx)
+
+
+@app.post("/")
+def save_company(
+    request: Request,
+    company_name: str = Form(""),
+    industry: str = Form(""),
+    admin_role: str = Form(""),
+):
+    if not company_name.strip():
+        return redirect_with_error("/", "Название компании не может быть пустым.")
+    if industry not in dict(INDUSTRIES):
+        return redirect_with_error("/", "Выберите сферу деятельности из списка.")
+    if admin_role not in dict(ADMIN_ROLES):
+        return redirect_with_error("/", "Выберите, кем вы являетесь в компании.")
+
+    db = request.state.db
+    org = request.state.org
+    org.company_name = company_name.strip()
+    org.industry = industry
+    org.admin_role = admin_role
+    db.commit()
+    log_event(request, "entity_created", {"entity": "company_profile"})
+    return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/reset")
@@ -222,12 +299,15 @@ def division_list(request: Request):
     db = request.state.db
     org = request.state.org
     divisions = db.query(Division).filter_by(organization_id=org.id).all()
+    existing_names = {d.name.lower() for d in divisions}
+    suggestions = [s for s in DIVISION_SUGGESTIONS.get(org.industry or "other", []) if s.lower() not in existing_names]
     log_event(request, "page_view")
     ctx = base_ctx(request, "Подразделения")
     ctx.update(
         divisions=divisions,
         ordered=_ordered_divisions(divisions),
         parent_name=lambda pid: name_by_id(divisions, pid) if pid else "верхний уровень",
+        suggestions=suggestions,
     )
     return templates.TemplateResponse(request, "division_list.html", ctx)
 
@@ -286,9 +366,11 @@ def job_list(request: Request):
     db = request.state.db
     org = request.state.org
     positions = db.query(Position).filter_by(organization_id=org.id).all()
+    existing_names = {p.name.lower() for p in positions}
+    suggestions = [s for s in POSITION_SUGGESTIONS.get(org.industry or "other", []) if s.lower() not in existing_names]
     log_event(request, "page_view")
     ctx = base_ctx(request, "Должности")
-    ctx.update(positions=positions)
+    ctx.update(positions=positions, suggestions=suggestions)
     return templates.TemplateResponse(request, "job_list.html", ctx)
 
 

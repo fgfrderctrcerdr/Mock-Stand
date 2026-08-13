@@ -23,6 +23,18 @@
     </tbody>
   </table>
 
+  {% if suggestions %}
+  <div class="suggestions">
+    <span class="suggestions__label">Типовые для вашей сферы:</span>
+    {% for s in suggestions %}
+    <form method="post" action="/vhr/hrm/job_list/create" style="display:inline">
+      <input type="hidden" name="name" value="{{ s }}" />
+      <button type="submit" class="chip">+ {{ s }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <form method="post" action="/vhr/hrm/job_list/create" class="entity-form">
     <div class="field">
       <label for="jobName">Название должности</label>
