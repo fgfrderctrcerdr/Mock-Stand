@@ -90,12 +90,12 @@ body {
    "резервацию" места под фиксированную панель тура больше не нужен,
    панель тура переехала в левый нижний угол (см. verifix-tour.css). */
 .workspace { display: flex; align-items: flex-start; }
-.content-full { flex: 1; min-width: 0; padding: 28px 36px; }
+.content-full { flex: 1 1 50%; min-width: 380px; box-sizing: border-box; padding: 28px 32px; }
 @media (max-width: 900px) {
   .content-full { padding: 20px 16px; }
   .org-visual-panel { display: none; }   /* на узких экранах — приоритет форме настройки */
 }
-.page { max-width: 900px; margin: 0 auto; }
+.page { max-width: 640px; margin: 0 auto; }
 
 .page__title { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
 .page__subtitle { color: var(--text-muted); margin: 0 0 20px; font-size: 14px; }
@@ -126,7 +126,8 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
   font-family: var(--font); font-size: 14px; background: #fff;
 }
 .field__hint { font-size: 12px; color: var(--text-muted); margin: -6px 0 14px; }
-.field-row { display: flex; gap: 14px; }
+.field-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.field-row > .field { min-width: 140px; }
 
 .btn {
   border: none; border-radius: 8px; padding: 10px 18px; font-family: var(--font);
@@ -211,8 +212,8 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
    пилота с CPO) — живой снепшот оргструктуры, пересчитывается на
    сервере при каждой загрузке страницы (см. build_org_snapshot). */
 .org-visual-panel {
-  width: 320px; flex: none; background: #f9fafb; border-left: 1px solid var(--border);
-  padding: 20px; box-sizing: border-box;
+  flex: 1 1 50%; min-width: 380px; background: #f9fafb; border-left: 1px solid var(--border);
+  padding: 24px 28px; box-sizing: border-box;
   position: sticky; top: 56px; max-height: calc(100vh - 56px); overflow-y: auto;
 }
 .ovp__title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }

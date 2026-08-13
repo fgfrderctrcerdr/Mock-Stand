@@ -29,7 +29,15 @@
   function currentPath() { return location.pathname + location.search + location.hash; }
   function onRoute(step) {
     // Шаг «привязан» к экрану, если текущий путь содержит step.route.
-    return !step.route || currentPath().indexOf(step.route) !== -1;
+    // ИСКЛЮЧЕНИЕ: step.route === '/' (домашняя страница, шаг «компания») —
+    // '/' является подстрокой АБСОЛЮТНО ЛЮБОГО пути (любой URL начинается
+    // со слэша), поэтому indexOf() всегда находил "совпадение" и шаг
+    // компании считал себя "на своей странице" где угодно — например,
+    // показывал попап компании поверх формы подразделений. Для '/' нужно
+    // точное совпадение, не "содержит".
+    if (!step.route) return true;
+    if (step.route === '/') return location.pathname === '/';
+    return currentPath().indexOf(step.route) !== -1;
   }
 
   function firstUndone() {
@@ -291,8 +299,15 @@
       drawArrow(ensureRoot(), tabLabelEl, link);
       showPopover(link, step, 'route');
       try { tabLabelEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    } else if (link) {
+      // Ссылка есть, но не внутри дропдауна верхнего меню (например,
+      // логотип-ссылка на "/" для шага «компания») — нечего раскрывать,
+      // просто подсвечиваем саму ссылку напрямую.
+      highlight(link, null);
+      showPopover(link, step, 'route');
+      try { link.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
     } else {
-      // Не нашли пункт меню (например, ссылка ещё не отрендерилась) —
+      // Не нашли пункт меню вообще (например, ссылка ещё не отрендерилась) —
       // прежний фолбэк с явной кнопкой перехода.
       showPopover(null, step, 'route');
     }
