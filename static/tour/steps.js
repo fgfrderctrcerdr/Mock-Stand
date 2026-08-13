@@ -96,7 +96,7 @@ var VERIFIX_TOUR_STEPS = [
   },
   {
     id: 'attendance',
-    title: 'JTBD №1: сотрудник отмечает приход',
+    title: 'Сотрудник отмечает приход',
     why: 'В реальном Verifix это делает сотрудник в мобильном приложении Verifix ID. Здесь — эмулируем.',
     route: '/vhr/htt/attendance_mark',
     selector: '[data-tour="add"]',
@@ -105,7 +105,7 @@ var VERIFIX_TOUR_STEPS = [
   },
   {
     id: 'report',
-    title: 'JTBD №2: посмотрите отчёт по часам',
+    title: 'Посмотрите отчёт по часам',
     why: 'Вот она — ценность системы для клиента, не просто заведённая структура.',
     route: '/vhr/htt/timesheet_report',
     selector: null,   // это финальный шаг — просвещаем, не просим действия на элементе
