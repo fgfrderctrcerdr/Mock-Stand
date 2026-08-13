@@ -104,6 +104,17 @@ class OrgSessionMiddleware(BaseHTTPMiddleware):
 app.add_middleware(OrgSessionMiddleware)
 
 
+# На время активной разработки — без этого браузер может закешировать
+# JS/CSS (особенно static/tour/*) агрессивнее, чем HTML, и после git pull
+# показывать старую версию тура даже после обычного рефреша страницы.
+@app.middleware("http")
+async def disable_static_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 def log_event(request: Request, type_: str, meta: dict | None = None):
     db = request.state.db
     db.add(TelemetryEvent(organization_id=request.state.org.id, type=type_, path=request.url.path, meta=meta or {}))
