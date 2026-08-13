@@ -33,6 +33,7 @@
     </nav>
 
     <div class="topbar__right">
+      <button type="button" id="resetAllBtn" class="topbar__reset" title="Удалить все данные этой песочницы и начать заново">↺ Начать с начала</button>
       <span class="topbar__mock-badge" title="Это учебная копия, не настоящий Verifix">MOCK</span>
       <span class="topbar__org">{{ org_id[:8] }}…</span>
     </div>
@@ -83,6 +84,23 @@
         e.preventDefault();
       }
     });
+
+    // «Начать с начала» — полный сброс: чистим прогресс тура (localStorage)
+    // здесь же, на клиенте, а сервер отдельно удаляет данные организации
+    // и cookie (см. /reset в main.py). Оба шага нужны — одного localStorage
+    // недостаточно (данные остались бы в БД), одного /reset недостаточно
+    // (тур в браузере продолжил бы считать прошлые шаги пройденными).
+    var resetBtn = document.getElementById('resetAllBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        if (!window.confirm('Удалить все данные этой песочницы (подразделения, сотрудников и т.д.) и начать настройку с первого шага?')) return;
+        try {
+          localStorage.removeItem('verifix_tour_progress');
+          localStorage.removeItem('verifix_tour_progress_intro_seen');
+        } catch (e) {}
+        window.location.href = '/reset';
+      });
+    }
   </script>
 
   <script src="/static/tour/verifix-tour.js"></script>

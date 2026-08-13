@@ -188,3 +188,10 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 /* Клавиатурная альтернатива drag-and-drop дерева (QA-фикс №11) */
 .tree-node__parent-label { font-size: 12px; color: var(--text-muted); margin-left: auto; }
 .tree-node__parent-select { font-size: 12px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; max-width: 160px; }
+
+/* Кнопка полного сброса песочницы ("Начать с начала") */
+.topbar__reset {
+  background: transparent; border: 1px solid rgba(255,255,255,0.25); color: #cbd5e1;
+  font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: var(--font);
+}
+.topbar__reset:hover { background: rgba(255,255,255,0.08); color: #fff; }

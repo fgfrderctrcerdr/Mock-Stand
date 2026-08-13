@@ -166,6 +166,26 @@ def root(request: Request):
     return templates.TemplateResponse(request, "home.html", ctx)
 
 
+@app.get("/reset")
+def reset_sandbox(request: Request):
+    """Полный сброс песочницы («Начать с начала» в топбаре). Удаляет
+    текущую Organization целиком (со всей оргструктурой) и cookie —
+    следующий запрос создаст свежую песочницу с нуля. Прогресс тура
+    (localStorage) чистит сам фронт до перехода сюда — см. base.html.
+
+    AttendanceEvent/TelemetryEvent не имеют cascade-связи с Organization
+    (см. models.py) — удаляем явно, иначе останутся сиротами в БД."""
+    db = request.state.db
+    org = request.state.org
+    db.query(AttendanceEvent).filter_by(organization_id=org.id).delete()
+    db.query(TelemetryEvent).filter_by(organization_id=org.id).delete()
+    db.delete(org)
+    db.commit()
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie(COOKIE_NAME)
+    return response
+
+
 # ============================================================
 # Подразделения (hrm)
 # ============================================================
