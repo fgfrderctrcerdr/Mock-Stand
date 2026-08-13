@@ -90,9 +90,16 @@
 /* Панель-чеклист (слева снизу — справа теперь постоянная панель
    орг-структуры, .org-visual-panel, см. styles.css) */
 .vtour-panel {
-  position: fixed; left: 20px; bottom: 20px; width: 320px; max-width: calc(100vw - 24px);
+  /* Раньше position:fixed слева снизу — плавала над формой и
+     перекрывала её (см. фидбек со скрином: загораживала кнопку
+     "Сохранить и продолжить"). Теперь настоящий блок в потоке
+     страницы, в отведённом слоте наверху левой колонки (см.
+     base.html #tourPanelSlot) — sticky, чтобы не терялась при
+     скролле длинной формы, но больше не занимает чужое место. */
+  position: sticky; top: 0; z-index: 40;
+  width: 100%; max-width: 460px; margin-bottom: 20px;
   background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(17,24,39,0.16); overflow: hidden; color: #111827;
+  box-shadow: 0 6px 20px rgba(17,24,39,0.08); overflow: hidden; color: #111827;
 }
 .vtour-panel__head { display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid #f3f4f6; }

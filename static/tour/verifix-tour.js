@@ -126,12 +126,22 @@
     for (var i = 0; i < els.length; i++) els[i].remove();
   }
 
+  // Слот панели-чеклиста — настоящий элемент в потоке страницы (см.
+  // base.html, верх левой колонки под топбаром), НЕ #vtour-root. Раньше
+  // панель была position:fixed слева снизу и перекрывала форму (см.
+  // фидбек со скрином — загораживала "Сохранить и продолжить"). Слот
+  // живёт вне #vtour-root, поэтому root.innerHTML='' его не чистит —
+  // чистим явно, как и forced-open/next-button.
+  function panelSlot() { return document.getElementById('tourPanelSlot'); }
+  function clearPanelSlot() { var s = panelSlot(); if (s) s.innerHTML = ''; }
+
   function render() {
     var root = ensureRoot();
     root.innerHTML = '';
     state.activeVisuals = [];
     clearForcedOpen();
     clearInjectedNextButton();
+    clearPanelSlot();
     if (state.opts.hidden) return;
 
     var doneCount = state.steps.filter(function (s) { return state.done[s.id]; }).length;
@@ -169,7 +179,12 @@
     if (doneCount === total && total) {
       panel.appendChild(el('div', 'vtour-done', '🎉 ' + esc(state.opts.doneText || 'Настройка завершена!')));
     }
-    root.appendChild(panel);
+
+    // В отведённый слот (верх левой колонки), а не в плавающий оверлей —
+    // если слота на странице почему-то нет, старый фолбэк в #vtour-root
+    // (плавающий, как раньше) — лучше плавающая панель, чем никакой.
+    var slot = panelSlot();
+    if (slot) slot.appendChild(panel); else root.appendChild(panel);
 
     head.querySelector('.vtour-x').addEventListener('click', function () {
       panel.classList.toggle('is-min');
