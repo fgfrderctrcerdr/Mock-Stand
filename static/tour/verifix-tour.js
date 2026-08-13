@@ -524,6 +524,15 @@
       try { seenIntro = !!localStorage.getItem(LS_KEY + '_intro_seen'); } catch (e) {}
       var noProgressYet = Object.keys(state.done).length === 0;
 
+      // БАГ: гид по навигации показывался только на pathname==='/', но
+      // "зайти с нуля" не гарантирует, что человек окажется именно на
+      // домашней странице — если браузер помнит другой URL (например,
+      // "Отчётность" с прошлой сессии), первый визит после сброса
+      // прогресса попадёт именно туда, и гид молчал. Если прогресса
+      // вообще нет ещё — это в любом случае "первый визит", неважно,
+      // на какой странице он произошёл; ведём так же, как после "Далее".
+      if (noProgressYet) state.justAdvanced = true;
+
       if (opts && opts.intro && noProgressYet && !seenIntro) {
         renderIntro(opts.intro);
       } else {
