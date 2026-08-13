@@ -41,8 +41,8 @@
       <div class="field"><label for="empSchedule">График</label>
         <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label for="empLocation">Локация</label>
-        <select id="empLocation" name="location_id" required><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select>
+      <div class="field"><label for="empLocation">Локация <span style="color:var(--text-muted);font-weight:400;">(можно прикрепить позже, в панели справа)</span></label>
+        <select id="empLocation" name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select>
       </div>
     </div>
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>

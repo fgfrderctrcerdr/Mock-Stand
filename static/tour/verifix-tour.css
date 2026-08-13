@@ -87,9 +87,10 @@
 .vtour-btn--ghost { background: transparent; color: #6b7280; border-color: #e5e7eb; }
 .vtour-btn--ghost:hover { color: #111827; border-color: #9ca3af; background: transparent; }
 
-/* Панель-чеклист (справа снизу) */
+/* Панель-чеклист (слева снизу — справа теперь постоянная панель
+   орг-структуры, .org-visual-panel, см. styles.css) */
 .vtour-panel {
-  position: fixed; right: 20px; bottom: 20px; width: 320px; max-width: calc(100vw - 24px);
+  position: fixed; left: 20px; bottom: 20px; width: 320px; max-width: calc(100vw - 24px);
   background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
   box-shadow: 0 12px 40px rgba(17,24,39,0.16); overflow: hidden; color: #111827;
 }

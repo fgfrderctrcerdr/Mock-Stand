@@ -166,6 +166,45 @@ def log_event(request: Request, type_: str, meta: dict | None = None):
     db.commit()
 
 
+def build_org_snapshot(db, org):
+    """Данные для постоянной панели «результат» справа (см. запрос
+    Vladimir после пилота с CPO) — пересчитывается на КАЖДОЙ загрузке
+    страницы из текущего состояния БД, поэтому правки на любом шаге сразу
+    видны на панели, независимо от того, куда вернулся пользователь."""
+    divisions = db.query(Division).filter_by(organization_id=org.id).all()
+    employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    locations = db.query(Location).filter_by(organization_id=org.id).all()
+
+    emp_by_division = defaultdict(list)
+    emp_by_location = defaultdict(list)
+    for e in employees:
+        if e.division_id:
+            emp_by_division[e.division_id].append(e)
+        if e.location_id:
+            emp_by_location[e.location_id].append(e)
+
+    tree = [
+        {"division": d, "depth": depth, "employees": emp_by_division.get(d.id, [])}
+        for d, depth in _ordered_divisions(divisions)
+    ]
+    loc_rows = [
+        {"location": l, "employees": emp_by_location.get(l.id, [])}
+        for l in locations
+    ]
+    unassigned = [e for e in employees if not e.location_id]
+
+    return {"tree": tree, "loc_rows": loc_rows, "unassigned": unassigned, "has_any": bool(divisions or employees or locations)}
+
+
+def initials(full_name: str) -> str:
+    parts = [p for p in full_name.strip().split() if p]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[1][0]).upper()
+
+
 def base_ctx(request: Request, page_title: str):
     current_section = None
     for section in MENU:
@@ -181,6 +220,8 @@ def base_ctx(request: Request, page_title: str):
         "current_section": current_section,
         "org_id": request.state.org.id,
         "error": request.query_params.get("error"),   # QA-фикс №4 — банер ошибки серверной валидации
+        "org_snapshot": build_org_snapshot(request.state.db, request.state.org),
+        "initials": initials,
     }
 
 
@@ -535,18 +576,21 @@ def employee_create(
     schedule_id: str = Form(""),
     location_id: str = Form(""),
 ):
-    # QA-фикс №10: подзаголовок формы обещает "свяжите с подразделением/
-    # должностью/графиком/локацией — это JTBD №1", но раньше обязательным
-    # было только ФИО — можно было создать сотрудника, ни с чем не
-    # связанного, что тихо ломает смысл JTBD дальше по цепочке. Раз весь
-    # остальной тур принудительно обязателен — здесь тоже, для
-    # согласованности.
+    # QA-фикс №10 (первая версия) требовал ВСЕ 4 связи при создании,
+    # включая локацию. Теперь это пересмотрено: появилась постоянная
+    # панель справа с drag-and-drop прикреплением сотрудника к локации
+    # (см. запрос Vladimir после пилота с CPO) — сотрудник должен мочь
+    # существовать «непривязанным» (в пуле unassigned), чтобы это
+    # прикрепление имело смысл как отдельное действие. Локация теперь
+    # необязательна при создании; подразделение/должность/график —
+    # остаются обязательными (для них альтернативного способа задать
+    # значение после создания нет).
     if not full_name.strip():
         return redirect_with_error("/vhr/href/employee", "ФИО сотрудника не может быть пустым.")
-    if not (division_id and position_id and schedule_id and location_id):
+    if not (division_id and position_id and schedule_id):
         return redirect_with_error(
             "/vhr/href/employee",
-            "Заполните все связи (подразделение, должность, график, локация) — без них сотрудник не сможет отметиться."
+            "Заполните подразделение, должность и график. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа."
         )
     db = request.state.db
     org = request.state.org
@@ -571,6 +615,27 @@ def employee_delete(request: Request, employee_id: str):
     db.query(Employee).filter_by(id=employee_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/href/employee", status_code=303)
+
+
+@app.post("/vhr/href/employee/{employee_id}/assign_location")
+def employee_assign_location(request: Request, employee_id: str, location_id: str = Form("")):
+    """Drag-and-drop сотрудника на локацию в постоянной панели справа
+    (см. запрос Vladimir после пилота) — тот же location_id, что и
+    выпадающий список в форме сотрудника, просто другой способ задать
+    его. AJAX, не редирект — панель сама перерисуется на клиенте."""
+    db = request.state.db
+    org = request.state.org
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    if not emp:
+        return {"ok": False, "error": "Сотрудник не найден"}
+    loc_id = location_id or None
+    if loc_id:
+        loc = db.query(Location).filter_by(id=loc_id, organization_id=org.id).first()
+        if not loc:
+            return {"ok": False, "error": "Локация не найдена"}
+    emp.location_id = loc_id
+    db.commit()
+    return {"ok": True}
 
 
 # ============================================================

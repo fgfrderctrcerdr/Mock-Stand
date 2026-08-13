@@ -41,12 +41,93 @@
     </div>
   </header>
 
-  <main class="content-full">
-    {% if error %}
-    <div class="page-error-banner">{{ error }}</div>
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+  <div class="workspace">
+    <main class="content-full">
+      {% if error %}
+      <div class="page-error-banner">{{ error }}</div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <aside class="org-visual-panel">
+      <div class="ovp__title">Оргструктура</div>
+      {% if org_snapshot.tree %}
+      <div class="ovp__tree">
+        {% for row in org_snapshot.tree %}
+        <div class="ovp__division" style="margin-left:{{ row.depth * 16 }}px">
+          <div class="ovp__division-name">{{ row.division.name }}</div>
+          {% if row.employees %}
+          <div class="ovp__chips">
+            {% for e in row.employees %}
+            <span class="ovp__chip"><span class="ovp__avatar-mini">{{ initials(e.full_name) }}</span>{{ e.full_name }}</span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="ovp__empty-note">Пока нет сотрудников</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ovp__empty-note">Подразделений пока нет</div>
+      {% endif %}
+
+      <div class="ovp__title" style="margin-top:26px;">Локации</div>
+      <p class="ovp__hint">Перетащите сотрудника на локацию, чтобы прикрепить.</p>
+
+      <div class="ovp__locations">
+        {% for row in org_snapshot.loc_rows %}
+        <div class="ovp__location">
+          <div class="ovp__location-circle" data-location-id="{{ row.location.id }}">
+            {% for e in row.employees %}
+            <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+            {% endfor %}
+          </div>
+          <div class="ovp__location-name">{{ row.location.name }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if org_snapshot.unassigned %}
+      <div class="ovp__unassigned-title">Не прикреплены</div>
+      <div class="ovp__unassigned-pool" data-location-id="">
+        {% for e in org_snapshot.unassigned %}
+        <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </aside>
+  </div>
+
+  <script>
+    // Drag-and-drop сотрудника на локацию в постоянной панели справа —
+    // AJAX на /assign_location, затем полная перезагрузка страницы:
+    // так и левая часть (если на ней тоже что-то относится к сотруднику),
+    // и сама панель гарантированно останутся в консистентном состоянии
+    // с БД, без риска разойтись с реальностью из-за ручной правки DOM.
+    (function () {
+      var dragged = null;
+      document.querySelectorAll('.ovp__avatar[draggable="true"]').forEach(function (av) {
+        av.addEventListener('dragstart', function () { dragged = av.dataset.employeeId; av.classList.add('is-dragging'); });
+        av.addEventListener('dragend', function () { av.classList.remove('is-dragging'); });
+      });
+      document.querySelectorAll('.ovp__location-circle, .ovp__unassigned-pool').forEach(function (zone) {
+        zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('is-drop-target'); });
+        zone.addEventListener('dragleave', function () { zone.classList.remove('is-drop-target'); });
+        zone.addEventListener('drop', function (e) {
+          e.preventDefault();
+          zone.classList.remove('is-drop-target');
+          if (!dragged) return;
+          var body = new URLSearchParams();
+          body.set('location_id', zone.dataset.locationId || '');
+          fetch('/vhr/href/employee/' + dragged + '/assign_location', { method: 'POST', body: body })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); });
+          dragged = null;
+        });
+      });
+    })();
+  </script>
 
   <script>
     // Клик по вкладке верхнего меню — раскрытие/закрытие дропдауна.
