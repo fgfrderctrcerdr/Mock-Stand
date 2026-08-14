@@ -10,8 +10,8 @@
       {% for row in rows %}
       <tr data-row-id="{{ row.id }}">
         <td>{{ row.employee_name }}</td>
-        <td>{{ row.in_at.strftime('%d.%m.%Y %H:%M') if row.in_at else '—' }}</td>
-        <td>{{ row.out_at.strftime('%d.%m.%Y %H:%M') if row.out_at else 'ещё не отметился' }}</td>
+        <td>{{ to_local(row.in_at).strftime('%d.%m.%Y %H:%M') if row.in_at else '—' }}</td>
+        <td>{{ to_local(row.out_at).strftime('%d.%m.%Y %H:%M') if row.out_at else 'ещё не отметился' }}</td>
         <td>{{ row.hours if row.hours is not none else '—' }}</td>
       </tr>
       {% else %}

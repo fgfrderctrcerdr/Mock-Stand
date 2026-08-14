@@ -15,10 +15,7 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_ar
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# QA L3: get_db() (FastAPI-dependency generator) был мёртвым кодом — доступ
+# к БД идёт через request.state.db (см. OrgSessionMiddleware в main.py),
+# не через Depends(get_db). Убрано, чтобы не путать будущего читателя
+# несуществующим вторым способом получить сессию.

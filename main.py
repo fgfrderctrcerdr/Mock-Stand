@@ -18,7 +18,8 @@ Organization при первом заходе.
 """
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from urllib.parse import quote
 
@@ -122,6 +123,14 @@ COOKIE_NAME = "mock_org"
 
 class OrgSessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # QA M1: раньше создавало Organization на ЛЮБОЙ запрос без cookie —
+        # включая /static/*, /favicon.ico и т.п. Любой бот/скан/битая ссылка
+        # плодит мусорные организации в БД, ничего не настраивая. Эти пути
+        # не читают request.state.org/db вообще, пропускаем без сессии.
+        path = request.url.path
+        if path.startswith("/static/") or path == "/favicon.ico":
+            return await call_next(request)
+
         db = SessionLocal()
         token = request.cookies.get(COOKIE_NAME)
         org = db.query(Organization).filter(Organization.token == token).first() if token else None
@@ -205,6 +214,19 @@ def initials(full_name: str) -> str:
     return (parts[0][0] + parts[1][0]).upper()
 
 
+# QA M3: время отметок хранится в UTC (правильно для БД), но отображалось
+# без конвертации — для Ташкента это разница в 5 часов, сбивает восприятие
+# демо ("вот сейчас отметился" показывало время на 5ч назад). Конвертируем
+# только для отображения, храним всё так же в UTC.
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
+
+
+def to_local(dt):
+    if dt is None:
+        return None
+    return dt.astimezone(TASHKENT_TZ)
+
+
 def base_ctx(request: Request, page_title: str):
     current_section = None
     for section in MENU:
@@ -222,6 +244,7 @@ def base_ctx(request: Request, page_title: str):
         "error": request.query_params.get("error"),   # QA-фикс №4 — банер ошибки серверной валидации
         "org_snapshot": build_org_snapshot(request.state.db, request.state.org),
         "initials": initials,
+        "to_local": to_local,
     }
 
 
@@ -347,7 +370,6 @@ def division_list(request: Request):
     ctx.update(
         divisions=divisions,
         ordered=_ordered_divisions(divisions),
-        parent_name=lambda pid: name_by_id(divisions, pid) if pid else "верхний уровень",
         suggestions=suggestions,
     )
     return templates.TemplateResponse(request, "division_list.html", ctx)
@@ -375,6 +397,10 @@ def division_delete(request: Request, division_id: str):
     target = db.query(Division).filter_by(id=division_id, organization_id=org.id).first()
     if target:
         db.query(Division).filter_by(organization_id=org.id, parent_id=division_id).update({"parent_id": target.parent_id})
+        # QA H1: SQLite не форсит FK — без этого сотрудники этого подразделения
+        # остаются ссылаться на удалённый id и пропадают из панели/отчётов
+        # (не попадают ни в дерево, ни в "не прикреплены", просто исчезают).
+        db.query(Employee).filter_by(organization_id=org.id, division_id=division_id).update({"division_id": None})
         db.delete(target)
         db.commit()
     return RedirectResponse(url="/vhr/hrm/division_list", status_code=303)
@@ -392,6 +418,13 @@ def division_reparent(request: Request, division_id: str, new_parent_id: str = F
         return {"ok": False, "error": "Нельзя сделать подразделение родителем самого себя"}
     if new_parent_id and _is_descendant(divisions, new_parent_id, division_id):
         return {"ok": False, "error": "Нельзя переносить подразделение в собственного потомка"}
+    # QA M4: раньше не проверялось, что new_parent_id реально существует в
+    # ЭТОЙ организации — искусственно составленный запрос мог подвесить
+    # подразделение на недостижимый parent_id: оно тогда не попадает в
+    # дерево (тот же паттерн, что и в H1 — висячая ссылка), но остаётся в
+    # счётчике "всего подразделений", создавая расхождение.
+    if new_parent_id and not any(d.id == new_parent_id for d in divisions):
+        return {"ok": False, "error": "Родительское подразделение не найдено"}
 
     db.query(Division).filter_by(id=division_id, organization_id=org.id).update({"parent_id": new_parent_id})
     db.commit()
@@ -432,6 +465,9 @@ def job_create(request: Request, name: str = Form("")):
 def job_delete(request: Request, position_id: str):
     db = request.state.db
     org = request.state.org
+    # QA H1: обнуляем ссылку у сотрудников — иначе дальше "мертвый" position_id
+    # (name_by_id молча вернёт "—", но данные в БД останутся противоречивыми).
+    db.query(Employee).filter_by(organization_id=org.id, position_id=position_id).update({"position_id": None})
     db.query(Position).filter_by(id=position_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/hrm/job_list", status_code=303)
@@ -453,14 +489,34 @@ def location_list(request: Request):
 
 
 @app.post("/vhr/htt/location_list/create")
-def location_create(request: Request, name: str = Form(""), lat: float = Form(...), lng: float = Form(...), accuracy: float = Form(50), address: str = Form("")):
+def location_create(request: Request, name: str = Form(""), lat: str = Form(""), lng: str = Form(""), accuracy: str = Form("50"), address: str = Form("")):
     if not name.strip():
         return redirect_with_error("/vhr/htt/location_list", "Название локации не может быть пустым.")
-    if accuracy <= 0:
+    # QA H2: lat/lng были float = Form(...) (обязательные) — если карта
+    # не прогрузилась (сеть/Leaflet не успел инициализироваться), скрытые
+    # поля уходят пустыми, и это падало в сырой 422 (Field required) вместо
+    # дружелюбного баннера, как везде. Теперь принимаем как строки и сами
+    # валидируем, отдельно объясняя именно ЭТУ причину (не просто "проверьте
+    # поле", а "карта не загрузилась" — это реальный частый триггер).
+    try:
+        lat_val = float(lat)
+        lng_val = float(lng)
+    except ValueError:
+        return redirect_with_error(
+            "/vhr/htt/location_list",
+            "Не удалось определить координаты — карта могла не успеть загрузиться. Кликните точку на карте или найдите адрес заново."
+        )
+    # QA L1: accuracy тоже был типизирован как float = Form(50) — тот же
+    # класс проблемы (сырой 422 на нечисловом крафте), а не просто "min=1".
+    try:
+        accuracy_val = float(accuracy)
+    except ValueError:
+        return redirect_with_error("/vhr/htt/location_list", "Радиус зоны отметок должен быть числом.")
+    if accuracy_val <= 0:
         return redirect_with_error("/vhr/htt/location_list", "Радиус зоны отметок должен быть больше нуля.")
     db = request.state.db
     org = request.state.org
-    l = Location(organization_id=org.id, name=name.strip(), address=address, lat=lat, lng=lng, accuracy=accuracy)
+    l = Location(organization_id=org.id, name=name.strip(), address=address, lat=lat_val, lng=lng_val, accuracy=accuracy_val)
     db.add(l)
     db.commit()
     log_event(request, "entity_created", {"entity": "location", "id": l.id})
@@ -471,6 +527,11 @@ def location_create(request: Request, name: str = Form(""), lat: float = Form(..
 def location_delete(request: Request, location_id: str):
     db = request.state.db
     org = request.state.org
+    # QA H1 (основной репродуцированный сценарий): без этого сотрудник
+    # прикреплённый к удаляемой локации пропадает из панели ПОЛНОСТЬЮ —
+    # не в кружке (локации нет), не в пуле "не прикреплены" (location_id
+    # не None, а мёртвый id) — и вернуть его через DnD уже нельзя.
+    db.query(Employee).filter_by(organization_id=org.id, location_id=location_id).update({"location_id": None})
     db.query(Location).filter_by(id=location_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/htt/location_list", status_code=303)
@@ -509,6 +570,15 @@ def schedule_create(
     if kind == "regular":
         if not week_days:
             return redirect_with_error("/vhr/htt/schedule_list", "У обычного графика должен быть хотя бы один рабочий день.")
+        # QA L1: int(d) без защиты падал в 500 на нечисловом крафте, и не было
+        # проверки диапазона 1–7 (дни недели) — валидный HTML-чекбокс всегда
+        # шлёт "1".."7", но эндпоинт не должен ронять сервер на произвольном вводе.
+        try:
+            week_days_int = sorted(set(int(d) for d in week_days))
+        except ValueError:
+            return redirect_with_error("/vhr/htt/schedule_list", "Некорректный день недели.")
+        if any(d < 1 or d > 7 for d in week_days_int):
+            return redirect_with_error("/vhr/htt/schedule_list", "День недели должен быть от 1 (понедельник) до 7 (воскресенье).")
         if not start_time or not end_time:
             return redirect_with_error("/vhr/htt/schedule_list", "Укажите начало и конец рабочего дня.")
         if start_time >= end_time:
@@ -528,7 +598,7 @@ def schedule_create(
         organization_id=org.id,
         name=name.strip(),
         kind=kind,
-        week_days=[int(d) for d in week_days] if kind == "regular" else [],
+        week_days=week_days_int if kind == "regular" else [],
         start_time=start_time or None if kind == "regular" else None,
         end_time=end_time or None if kind == "regular" else None,
         norm_hours=float(norm_hours) if (kind == "hourly" and norm_hours) else None,
@@ -543,6 +613,7 @@ def schedule_create(
 def schedule_delete(request: Request, schedule_id: str):
     db = request.state.db
     org = request.state.org
+    db.query(Employee).filter_by(organization_id=org.id, schedule_id=schedule_id).update({"schedule_id": None})
     db.query(Schedule).filter_by(id=schedule_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/htt/schedule_list", status_code=303)
@@ -612,6 +683,10 @@ def employee_create(
 def employee_delete(request: Request, employee_id: str):
     db = request.state.db
     org = request.state.org
+    # QA M6: без этого отметки удалённого сотрудника остаются висячими —
+    # в списке отметок и в отчёте по часам имя рендерится как "—" (name_by_id
+    # не находит сотрудника в текущем списке).
+    db.query(AttendanceEvent).filter_by(organization_id=org.id, employee_id=employee_id).delete()
     db.query(Employee).filter_by(id=employee_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/href/employee", status_code=303)
@@ -699,8 +774,8 @@ def users_simulate_activate(request: Request, employee_id: str):
 def attendance_mark_page(request: Request):
     db = request.state.db
     org = request.state.org
-    employees = db.query(Employee).filter_by(organization_id=org.id, invite_status="active").all()
-    all_employees_count = db.query(Employee).filter_by(organization_id=org.id).count()
+    active_employees = db.query(Employee).filter_by(organization_id=org.id, invite_status="active").all()
+    all_employees = db.query(Employee).filter_by(organization_id=org.id).all()
     events = (
         db.query(AttendanceEvent)
         .filter_by(organization_id=org.id)
@@ -710,24 +785,48 @@ def attendance_mark_page(request: Request):
     )
     log_event(request, "page_view")
     ctx = base_ctx(request, "Отметки")
-    ctx.update(employees=employees, events=events, has_any_employee=all_employees_count > 0)
+    # QA-находка попутно: раньше в таблице "последние отметки" имя искалось
+    # только среди АКТИВНЫХ сотрудников (employees) — если сотрудник успел
+    # деактивироваться, но не удалиться, его старые отметки показывали "—"
+    # хотя сотрудник по факту существует. Для списка/выбора — активные;
+    # для отображения имени в истории — все.
+    ctx.update(employees=active_employees, all_employees=all_employees, events=events, has_any_employee=bool(all_employees))
     return templates.TemplateResponse(request, "attendance_mark.html", ctx)
 
 
 @app.post("/vhr/htt/attendance_mark/create")
-def attendance_mark_create(request: Request, employee_id: str = Form(...), kind: str = Form("in")):
+def attendance_mark_create(request: Request, employee_id: str = Form(""), kind: str = Form("in"), hours_ago: str = Form("0")):
+    # QA M2: раньше строило AttendanceEvent с сырым employee_id независимо
+    # от того, найден ли сотрудник и активен ли он, и не ограничивало kind.
+    if kind not in ("in", "out"):
+        return redirect_with_error("/vhr/htt/attendance_mark", "Некорректный тип отметки.")
     db = request.state.db
     org = request.state.org
-    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id, invite_status="active").first()
+    if not emp:
+        return redirect_with_error("/vhr/htt/attendance_mark", "Сотрудник не найден или ещё не активирован — выберите из списка.")
+
+    # QA M3: раньше приход и уход всегда писались "прямо сейчас" — при
+    # демонстрации кликаешь оба подряд, разница уходит в округление до 0.00ч,
+    # и кульминационный отчёт показывает 0 часов. Позволяем "задним числом"
+    # отметить приход на N часов назад, чтобы уход "сейчас" давал реалистичную
+    # разницу.
+    try:
+        h = max(0.0, min(48.0, float(hours_ago)))
+    except ValueError:
+        h = 0.0
+    marked_at = datetime.now(timezone.utc) - timedelta(hours=h)
+
     ev = AttendanceEvent(
         organization_id=org.id,
         employee_id=employee_id,
-        location_id=emp.location_id if emp else None,
+        location_id=emp.location_id,
         kind=kind,
+        marked_at=marked_at,
     )
     db.add(ev)
     db.commit()
-    log_event(request, "attendance_marked", {"employee_id": employee_id, "kind": kind})
+    log_event(request, "attendance_marked", {"employee_id": employee_id, "kind": kind, "hours_ago": h})
     return RedirectResponse(url="/vhr/htt/attendance_mark", status_code=303)
 
 

@@ -26,6 +26,12 @@ body {
 }
 
 .topbar {
+  /* QA L7: раньше топбар скроллился как обычный блок, а .org-visual-panel
+     (и панель тура) держали sticky top:56px в предположении, что топбар
+     останется на месте — без этого над панелью при скролле повисал
+     пустой 56px зазор. Топбар должен реально прилипать, чтобы это
+     предположение было верным. */
+  position: sticky; top: 0; z-index: 100;
   height: 56px;
   display: flex;
   align-items: center;
@@ -253,3 +259,11 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
   cursor: grab; flex: none; user-select: none;
 }
 .ovp__avatar.is-dragging { opacity: 0.4; }
+
+/* QA (LOW): #tourPanelSlot был обёрткой ровно по высоте панели — sticky
+   внутри неё физически не может "проехать" дальше собственной высоты
+   обёртки, замерено: стартует top=84, после скролла уходит в минус вместо
+   залипания. display:contents убирает у обёртки собственный box вообще —
+   .vtour-panel становится прямым участником потока .content-full, и
+   sticky считается относительно реальной высоты страницы, не обёртки. */
+#tourPanelSlot { display: contents; }

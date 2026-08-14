@@ -13,7 +13,14 @@
         <td>{{ name_by_id(divisions, e.division_id) }}</td>
         <td>{{ name_by_id(positions, e.position_id) }}</td>
         <td>{{ name_by_id(schedules, e.schedule_id) }}</td>
-        <td>{{ name_by_id(locations, e.location_id) }}</td>
+        <td>
+          <select class="emp-location-select" data-employee-id="{{ e.id }}" aria-label="Локация сотрудника «{{ e.full_name }}» (клавиатурная альтернатива перетаскиванию в панели)">
+            <option value="" {{ 'selected' if not e.location_id else '' }}>—</option>
+            {% for l in locations %}
+            <option value="{{ l.id }}" {{ 'selected' if e.location_id == l.id else '' }}>{{ l.name }}</option>
+            {% endfor %}
+          </select>
+        </td>
         <td>
           <form method="post" action="/vhr/href/employee/{{ e.id }}/delete" style="display:inline"
                 data-confirm="Удалить сотрудника «{{ e.full_name }}»?">
@@ -48,4 +55,23 @@
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>
   </form>
 </div>
+
+<script>
+// QA M5: DnD в панели справа — только мышью, нет клавиатурной/тач-
+// альтернативы и способа поменять локацию ПОСЛЕ создания сотрудника.
+// Тот же эндпоинт /assign_location, что и у drag-and-drop, просто
+// триггер — change у select, не drop.
+(function () {
+  document.querySelectorAll('.emp-location-select').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var body = new URLSearchParams();
+      body.set('location_id', sel.value);
+      fetch('/vhr/href/employee/' + sel.dataset.employeeId + '/assign_location', { method: 'POST', body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); })
+        .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+    });
+  });
+})();
+</script>
 {% endblock %}

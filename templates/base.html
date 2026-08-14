@@ -123,7 +123,8 @@
           body.set('location_id', zone.dataset.locationId || '');
           fetch('/vhr/href/employee/' + dragged + '/assign_location', { method: 'POST', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); });
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); })
+            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
           dragged = null;
         });
       });
