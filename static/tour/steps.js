@@ -39,7 +39,13 @@ var VERIFIX_TOUR_STEPS = [
     title: 'Создайте подразделения',
     why: 'Оргструктура компании. К подразделениям привязываются сотрудники.',
     route: '/vhr/hrm/division_list',
-    inputSelector: 'input[name="name"]',
+    // БАГ: 'input[name="name"]' совпадал ещё и со скрытыми input чипов
+    // типовых подразделений (те же name="name", рендерятся раньше в DOM) —
+    // querySelector брал ПЕРВЫЙ, то есть скрытый нулевого размера элемент.
+    // Отсюда затемнение почти на весь экран, невидимая рамка на реальном
+    // поле, стрелка от (0,0) через весь экран, и фокус, который никогда
+    // не срабатывал (вешался на скрытый инпут). Используем точный #id.
+    inputSelector: '#divName',
     selector: '[data-tour="add"]',
     emptyWarning: 'Подразделения — это структура компании (цех, зал, офис). Без хотя бы одного не к чему будет привязать сотрудников на следующих шагах.',
     check: gridHasRows,
@@ -49,7 +55,7 @@ var VERIFIX_TOUR_STEPS = [
     title: 'Заведите должности',
     why: 'Должность определяет, кем работает сотрудник.',
     route: '/vhr/hrm/job_list',
-    inputSelector: 'input[name="name"]',
+    inputSelector: '#jobName',   // тот же баг, что у divisions — см. комментарий выше
     selector: '[data-tour="add"]',
     emptyWarning: 'Должность — это то, кем работает сотрудник (например, «Официант»). Без неё не получится завести сотрудника.',
     check: gridHasRows,
@@ -59,7 +65,7 @@ var VERIFIX_TOUR_STEPS = [
     title: 'Создайте график работы',
     why: 'Правила рабочего времени, которые назначаются сотрудникам.',
     route: '/vhr/htt/schedule_list',
-    inputSelector: 'input[name="name"]',
+    inputSelector: '#schName',
     selector: '[data-tour="add"]',
     emptyWarning: 'График определяет, когда сотрудник должен быть на работе. Без него система не поймёт, что считать опозданием или переработкой.',
     check: gridHasRows,
@@ -69,7 +75,7 @@ var VERIFIX_TOUR_STEPS = [
     title: 'Добавьте локацию',
     why: 'Место, где сотрудник отмечает приход/уход.',
     route: '/vhr/htt/location_list',
-    inputSelector: 'input[name="name"]',
+    inputSelector: '#locName',
     selector: '[data-tour="add"]',
     emptyWarning: 'Локация — это место, где сотрудник отмечает приход/уход. Без неё физически негде будет отметиться.',
     check: gridHasRows,
@@ -79,7 +85,7 @@ var VERIFIX_TOUR_STEPS = [
     title: 'Добавьте сотрудника',
     why: 'Свяжите подразделение, должность, график и локацию в одном сотруднике.',
     route: '/vhr/href/employee',
-    inputSelector: 'input[name="full_name"]',
+    inputSelector: '#empFullName',
     selector: '[data-tour="add"]',
     emptyWarning: 'Сотрудник — это тот, кто и будет отмечаться и получать зарплату. Без него оставшиеся шаги (приглашение, отметка, отчёт) не имеют смысла.',
     check: gridHasRows,
