@@ -107,6 +107,22 @@ class Location(Base):
     organization = relationship("Organization", back_populates="locations")
 
 
+# Постоянное ПРАВИЛО «подразделение прикреплено к локации» — отдельно от
+# фактических привязок сотрудников (employee_locations). Фидбек Vladimir:
+# "прикрепление подразделения к локации" раньше было разовым действием —
+# добавляло текущих сотрудников, но НОВЫЙ сотрудник, заведённый в это
+# подразделение позже, не получал локацию автоматически. Теперь это
+# правило, а не разовая операция: см. employee_create() — при создании
+# сотрудника с division_id читаем отсюда все локации ЭТОГО подразделения
+# и сразу прикрепляем их сотруднику тоже.
+division_locations = Table(
+    "division_locations",
+    Base.metadata,
+    Column("division_id", String, ForeignKey("divisions.id"), primary_key=True),
+    Column("location_id", String, ForeignKey("locations.id"), primary_key=True),
+)
+
+
 class Employee(Base):
     __tablename__ = "employees"
     id = Column(String, primary_key=True, default=gen_uuid)

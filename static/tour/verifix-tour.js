@@ -294,8 +294,14 @@
   // формы: тогда она сама съезжает вниз вместе с содержимым и всегда
   // долистываема, как обычная часть страницы.
   function renderNextButton(step, actionTarget) {
+    // QA: для шагов attach_employee/attach_division actionTarget —
+    // .ovp__location-circle, а .parentElement у него — .ovp__location
+    // (ОДНА конкретная локация, flex-item в общем ряду .ovp__locations).
+    // Вставка "после родителя" вставляла кнопку МЕЖДУ круглами локаций
+    // (см. скрин). closest('.ovp__locations') поднимается до ВСЕГО ряда —
+    // кнопка встаёт под всеми локациями, не между ними.
     var container = actionTarget
-      ? (actionTarget.closest('form') || actionTarget.closest('.entity-form') || actionTarget.parentElement)
+      ? (actionTarget.closest('form') || actionTarget.closest('.entity-form') || actionTarget.closest('.ovp__locations') || actionTarget.parentElement)
       : document.querySelector('.page');
     if (!container) return;
 

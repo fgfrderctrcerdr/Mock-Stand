@@ -40,6 +40,7 @@ from models import (
     Position,
     Schedule,
     TelemetryEvent,
+    division_locations,
     employee_locations,
 )
 
@@ -483,6 +484,7 @@ def division_delete(request: Request, division_id: str):
         # остаются ссылаться на удалённый id и пропадают из панели/отчётов
         # (не попадают ни в дерево, ни в "не прикреплены", просто исчезают).
         db.query(Employee).filter_by(organization_id=org.id, division_id=division_id).update({"division_id": None})
+        db.execute(division_locations.delete().where(division_locations.c.division_id == division_id))
         db.delete(target)
         db.commit()
     return RedirectResponse(url="/vhr/hrm/division_list", status_code=303)
@@ -615,6 +617,7 @@ def location_delete(request: Request, location_id: str):
     # строки ассоциативной таблицы явно (bulk-delete Location.delete()
     # не трогает secondary-таблицу автоматически, тот же класс проблемы).
     db.execute(employee_locations.delete().where(employee_locations.c.location_id == location_id))
+    db.execute(division_locations.delete().where(division_locations.c.location_id == location_id))
     db.query(Location).filter_by(id=location_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/htt/location_list", status_code=303)
@@ -754,6 +757,23 @@ def employee_create(
     )
     db.add(e)
     db.commit()
+
+    # QA-фикс (найден по фидбеку): "прикрепление подразделения к локации"
+    # раньше действовало только на сотрудников, которые уже существовали
+    # на момент перетаскивания. Новый сотрудник в это же подразделение
+    # молча оставался непрёкреплённым. Теперь читаем ПРАВИЛА подразделения
+    # (division_locations, см. models.py) и прикрепляем те же локации
+    # новому сотруднику автоматически — правило действует и на будущих.
+    if division_id:
+        rule_location_ids = [
+            row.location_id for row in
+            db.execute(division_locations.select().where(division_locations.c.division_id == division_id)).all()
+        ]
+        if rule_location_ids:
+            locs = db.query(Location).filter(Location.organization_id == org.id, Location.id.in_(rule_location_ids)).all()
+            e.locations = locs
+            db.commit()
+
     log_event(request, "entity_created", {"entity": "employee", "id": e.id})
     return RedirectResponse(url="/vhr/href/employee", status_code=303)
 
@@ -837,7 +857,13 @@ def division_attach_all_to_location(request: Request, division_id: str, location
     "зажать кнопку на самом подразделении... прикрепить все подразделение
     к локации") — прикрепляет к этой локации КАЖДОГО сотрудника, у кого
     division_id совпадает (только прямые сотрудники этого подразделения,
-    не рекурсивно по дочерним подразделениям — осознанное упрощение)."""
+    не рекурсивно по дочерним подразделениям — осознанное упрощение).
+
+    Это не только разовое действие — записывает ПОСТОЯННОЕ правило в
+    division_locations (см. models.py): дальше employee_create() сам
+    прикрепит эту локацию любому НОВОМУ сотруднику, заведённому в это
+    подразделение, без повторного перетаскивания (фидбек: "новый
+    сотрудник должен прикрепиться автоматически")."""
     db = request.state.db
     org = request.state.org
     loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
@@ -849,6 +875,16 @@ def division_attach_all_to_location(request: Request, division_id: str, location
     for emp in employees:
         if loc not in emp.locations:
             emp.locations.append(loc)
+
+    exists = db.execute(
+        division_locations.select().where(
+            division_locations.c.division_id == division_id,
+            division_locations.c.location_id == location_id,
+        )
+    ).first()
+    if not exists:
+        db.execute(division_locations.insert().values(division_id=division_id, location_id=location_id))
+
     db.commit()
     log_event(request, "division_location_attach", {"division_id": division_id, "location_id": location_id})
     return {"ok": True, "count": len(employees)}
