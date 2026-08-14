@@ -192,24 +192,34 @@ def build_org_snapshot(db, org):
         if e.location_id:
             emp_by_location[e.location_id].append(e)
 
-    # Для карточки в стиле реального Verifix (см. референс) — количество
-    # ПРЯМЫХ дочерних подразделений в подвале карточки.
+    # Для подвала карточки (см. референс) — количество ПРЯМЫХ дочерних
+    # подразделений у каждого узла.
     child_counts = defaultdict(int)
     for d in divisions:
         if d.parent_id:
             child_counts[d.parent_id] += 1
 
-    tree = [
-        {"division": d, "depth": depth, "employees": emp_by_division.get(d.id, []), "child_count": child_counts.get(d.id, 0)}
-        for d, depth in _ordered_divisions(divisions)
-    ]
+    def _attach_counts(nodes):
+        for n in nodes:
+            n["child_count"] = child_counts.get(n["division"].id, 0)
+            _attach_counts(n["children"])
+        return nodes
+
+    division_tree = _attach_counts(_build_division_tree(divisions, emp_by_division))
+
     loc_rows = [
         {"location": l, "employees": emp_by_location.get(l.id, [])}
         for l in locations
     ]
     unassigned = [e for e in employees if not e.location_id]
 
-    return {"tree": tree, "loc_rows": loc_rows, "unassigned": unassigned, "has_any": bool(divisions or employees or locations)}
+    return {
+        "division_tree": division_tree,
+        "company_name": org.company_name,
+        "loc_rows": loc_rows,
+        "unassigned": unassigned,
+        "has_any": bool(divisions or employees or locations),
+    }
 
 
 def initials(full_name: str) -> str:
@@ -354,7 +364,9 @@ def reset_sandbox(request: Request):
 # ============================================================
 
 def _ordered_divisions(divisions):
-    """DFS с сохранением глубины — для дерева с отступами (см. web_onboarding app.js)."""
+    """DFS с сохранением глубины — для дерева с отступами (см. web_onboarding app.js).
+    Используется на самой странице подразделений (DnD-список), НЕ путать
+    с _build_division_tree ниже (вложенная структура для панели-оргчарта)."""
     by_parent = defaultdict(list)
     for d in divisions:
         by_parent[d.parent_id].append(d)
@@ -367,6 +379,24 @@ def _ordered_divisions(divisions):
 
     walk(None, 0)
     return result
+
+
+def _build_division_tree(divisions, emp_by_division):
+    """Настоящее вложенное дерево (не плоский список с отступами) — для
+    оргчарта в панели справа, по референсу реального Verifix: компания
+    сверху, от неё ветками верхнеуровневые подразделения, под каждым —
+    его дети, рекурсивно. Рендерится через recursive-макрос в base.html."""
+    by_parent = defaultdict(list)
+    for d in divisions:
+        by_parent[d.parent_id].append(d)
+
+    def build(parent_id):
+        return [
+            {"division": d, "employees": emp_by_division.get(d.id, []), "children": build(d.id)}
+            for d in by_parent.get(parent_id, [])
+        ]
+
+    return build(None)
 
 
 def _is_descendant(divisions, node_id, ancestor_id):

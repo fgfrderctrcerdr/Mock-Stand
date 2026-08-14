@@ -52,30 +52,52 @@
 
     <aside class="org-visual-panel">
       <div class="ovp__title">Оргструктура</div>
-      {% if org_snapshot.tree %}
-      <div class="ovp__tree">
-        {% for row in org_snapshot.tree %}
-        <div class="ovp__division" style="margin-left:{{ row.depth * 16 }}px">
-          <div class="ovp__division-head">{{ row.division.name }}</div>
+
+      {% macro render_node(node) %}
+      <li>
+        <div class="org-tree__node">
+          <div class="ovp__division-head">{{ node.division.name }}</div>
           <div class="ovp__division-body">
-            {% if row.employees %}
+            {% if node.employees %}
             <div class="ovp__avatar-row">
-              {% for e in row.employees %}
+              {% for e in node.employees %}
               <span class="ovp__avatar-mini" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
               {% endfor %}
             </div>
-            <div class="ovp__division-count">{{ row.employees|length }} {{ employees_word(row.employees|length) }}</div>
+            <div class="ovp__division-count">{{ node.employees|length }} {{ employees_word(node.employees|length) }}</div>
             {% else %}
             <div class="ovp__empty-note">Пока нет сотрудников</div>
             {% endif %}
           </div>
-          <div class="ovp__division-footer">Подразделений: {{ row.child_count }}</div>
+          <div class="ovp__division-footer">Подразделений: {{ node.child_count }}</div>
         </div>
-        {% endfor %}
+        {% if node.children %}
+        <ul>
+          {% for child in node.children %}{{ render_node(child) }}{% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endmacro %}
+
+      <!-- Настоящее дерево с ветками (не плоский список с отступами, как
+           было раньше) — компания сверху, от неё ветки к верхнеуровневым
+           подразделениям, под каждым — его дети, рекурсивно. Классический
+           CSS-приём с коннекторами через ::before/::after (см. styles.css
+           .org-tree) — по референсу реального Verifix. -->
+      <div class="org-tree-scroll">
+        <ul class="org-tree">
+          <li>
+            <div class="org-tree__node org-tree__node--root">{{ org_snapshot.company_name or 'Компания' }}</div>
+            {% if org_snapshot.division_tree %}
+            <ul>
+              {% for node in org_snapshot.division_tree %}{{ render_node(node) }}{% endfor %}
+            </ul>
+            {% else %}
+            <div class="ovp__empty-note" style="margin-top:10px;">Подразделений пока нет</div>
+            {% endif %}
+          </li>
+        </ul>
       </div>
-      {% else %}
-      <div class="ovp__empty-note">Подразделений пока нет</div>
-      {% endif %}
 
       <div class="ovp__title" style="margin-top:26px;">Локации</div>
       <p class="ovp__hint">Перетащите сотрудника на локацию, чтобы прикрепить.</p>

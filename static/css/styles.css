@@ -228,10 +228,50 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 
 .ovp__tree { display: flex; flex-direction: column; gap: 10px; }
 
+/* Настоящее дерево с ветками (не список с отступами) — классический
+   CSS-приём коннекторов через ::before/::after на <li>, см. base.html
+   (recursive-макрос render_node). По референсу реального Verifix:
+   компания сверху, ветки вниз к подразделениям, рекурсивно. */
+.org-tree-scroll { overflow-x: auto; padding-bottom: 8px; }
+.org-tree, .org-tree ul {
+  list-style: none; margin: 0; padding: 0; display: flex; position: relative;
+}
+.org-tree { justify-content: center; }
+.org-tree ul { padding-top: 24px; }
+.org-tree li {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 10px 0; position: relative; flex: none;
+}
+.org-tree li::before, .org-tree li::after {
+  content: ''; position: absolute; top: 0; width: 50%; height: 24px;
+  border-top: 2px solid var(--border);
+}
+.org-tree li::before { left: 0; border-right: 2px solid var(--border); }
+.org-tree li::after { right: 0; }
+.org-tree li:only-child { padding-top: 0; }
+.org-tree li:only-child::before, .org-tree li:only-child::after { display: none; }
+.org-tree li:first-child::before { border: none; }
+.org-tree li:last-child::after { border: none; }
+.org-tree > li { padding-top: 0; }
+.org-tree > li::before, .org-tree > li::after { display: none; }
+/* Вертикальный коннектор вниз от родителя к горизонтальной линии детей */
+.org-tree ul::before {
+  content: ''; position: absolute; top: 0; left: 50%;
+  border-left: 2px solid var(--border); width: 0; height: 24px;
+}
+
+.org-tree__node {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  width: 168px; text-align: left;
+}
+.org-tree__node--root {
+  background: var(--primary); color: #fff; text-align: center; font-weight: 700; font-size: 13px;
+  padding: 10px 14px; width: auto; min-width: 140px;
+}
+
 /* Карточка подразделения — по референсу реального Verifix (тёмная шапка +
    ряд аватаров сотрудников + подвал со счётчиком вложенных подразделений),
    не плоский список имён, как было раньше. */
-.ovp__division { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .ovp__division-head {
   background: var(--nav-dark); color: #fff; font-size: 12.5px; font-weight: 600;
   padding: 8px 12px; letter-spacing: 0.01em;
