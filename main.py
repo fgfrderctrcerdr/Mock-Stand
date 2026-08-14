@@ -192,8 +192,15 @@ def build_org_snapshot(db, org):
         if e.location_id:
             emp_by_location[e.location_id].append(e)
 
+    # Для карточки в стиле реального Verifix (см. референс) — количество
+    # ПРЯМЫХ дочерних подразделений в подвале карточки.
+    child_counts = defaultdict(int)
+    for d in divisions:
+        if d.parent_id:
+            child_counts[d.parent_id] += 1
+
     tree = [
-        {"division": d, "depth": depth, "employees": emp_by_division.get(d.id, [])}
+        {"division": d, "depth": depth, "employees": emp_by_division.get(d.id, []), "child_count": child_counts.get(d.id, 0)}
         for d, depth in _ordered_divisions(divisions)
     ]
     loc_rows = [
@@ -227,6 +234,20 @@ def to_local(dt):
     return dt.astimezone(TASHKENT_TZ)
 
 
+def employees_word(n: int) -> str:
+    """Склонение "сотрудник/сотрудника/сотрудников" — для карточки
+    подразделения в стиле реального Verifix (см. референс-скриншот)."""
+    n_abs = abs(n) % 100
+    n1 = n_abs % 10
+    if 11 <= n_abs <= 14:
+        return "сотрудников"
+    if n1 == 1:
+        return "сотрудник"
+    if 2 <= n1 <= 4:
+        return "сотрудника"
+    return "сотрудников"
+
+
 def base_ctx(request: Request, page_title: str):
     current_section = None
     for section in MENU:
@@ -245,6 +266,7 @@ def base_ctx(request: Request, page_title: str):
         "org_snapshot": build_org_snapshot(request.state.db, request.state.org),
         "initials": initials,
         "to_local": to_local,
+        "employees_word": employees_word,
     }
 
 

@@ -56,16 +56,20 @@
       <div class="ovp__tree">
         {% for row in org_snapshot.tree %}
         <div class="ovp__division" style="margin-left:{{ row.depth * 16 }}px">
-          <div class="ovp__division-name">{{ row.division.name }}</div>
-          {% if row.employees %}
-          <div class="ovp__chips">
-            {% for e in row.employees %}
-            <span class="ovp__chip"><span class="ovp__avatar-mini">{{ initials(e.full_name) }}</span>{{ e.full_name }}</span>
-            {% endfor %}
+          <div class="ovp__division-head">{{ row.division.name }}</div>
+          <div class="ovp__division-body">
+            {% if row.employees %}
+            <div class="ovp__avatar-row">
+              {% for e in row.employees %}
+              <span class="ovp__avatar-mini" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+              {% endfor %}
+            </div>
+            <div class="ovp__division-count">{{ row.employees|length }} {{ employees_word(row.employees|length) }}</div>
+            {% else %}
+            <div class="ovp__empty-note">Пока нет сотрудников</div>
+            {% endif %}
           </div>
-          {% else %}
-          <div class="ovp__empty-note">Пока нет сотрудников</div>
-          {% endif %}
+          <div class="ovp__division-footer">Подразделений: {{ row.child_count }}</div>
         </div>
         {% endfor %}
       </div>
