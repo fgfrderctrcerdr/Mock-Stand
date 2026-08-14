@@ -36,6 +36,16 @@ var VERIFIX_TOUR_STEPS = [
     emptyWarning: 'Заполните название компании, сферу деятельности и свою роль — без этого нельзя продолжить.',
   },
   {
+    id: 'locations',
+    title: 'Добавьте локацию',
+    why: 'Место, где сотрудник отмечает приход/уход.',
+    route: '/vhr/htt/location_list',
+    inputSelector: '#locName',
+    selector: '[data-tour="add"]',
+    emptyWarning: 'Локация — это место, где сотрудник отмечает приход/уход. Без неё физически негде будет отметиться.',
+    check: gridHasRows,
+  },
+  {
     id: 'divisions',
     title: 'Создайте подразделения',
     why: 'Оргструктура компании. К подразделениям привязываются сотрудники.',
@@ -69,16 +79,6 @@ var VERIFIX_TOUR_STEPS = [
     inputSelector: '#schName',
     selector: '[data-tour="add"]',
     emptyWarning: 'График определяет, когда сотрудник должен быть на работе. Без него система не поймёт, что считать опозданием или переработкой.',
-    check: gridHasRows,
-  },
-  {
-    id: 'locations',
-    title: 'Добавьте локацию',
-    why: 'Место, где сотрудник отмечает приход/уход.',
-    route: '/vhr/htt/location_list',
-    inputSelector: '#locName',
-    selector: '[data-tour="add"]',
-    emptyWarning: 'Локация — это место, где сотрудник отмечает приход/уход. Без неё физически негде будет отметиться.',
     check: gridHasRows,
   },
   {
