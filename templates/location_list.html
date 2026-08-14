@@ -26,10 +26,10 @@
   </table>
 
   <form method="post" action="/vhr/htt/location_list/create" class="entity-form" id="locForm">
-    <div class="field"><label for="locName">Название локации</label><input type="text" id="locName" name="name" required placeholder="Кафе на Мустакиллик" /></div>
+    <div class="field"><label for="locName">Как называется ваша локация</label><input type="text" id="locName" name="name" required placeholder="Кафе на Мустакиллик" /></div>
 
     <div class="field">
-      <label for="locAddress">Адрес</label>
+      <label for="locAddress">По какому адресу находится ваша локация. С помощью адреса определим gps координаты</label>
       <div class="field-row" style="align-items:flex-start">
         <input type="text" id="locAddress" name="address" placeholder="Введите адрес и нажмите «Найти»" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;" />
         <button type="button" id="locFind" class="btn btn--ghost" style="flex:none">Найти</button>

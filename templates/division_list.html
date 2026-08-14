@@ -46,11 +46,11 @@
 
   <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
     <div class="field">
-      <label for="divName">Название подразделения</label>
+      <label for="divName">Как называется ваш отдел</label>
       <input type="text" id="divName" name="name" required placeholder="Кухня" />
     </div>
     <div class="field">
-      <label for="divParent">Родительское подразделение (опционально)</label>
+      <label for="divParent">Какому отделу он подчиняется (опционально)</label>
       <select id="divParent" name="parent_id">
         <option value="">— верхний уровень —</option>
         {% for d in divisions %}
