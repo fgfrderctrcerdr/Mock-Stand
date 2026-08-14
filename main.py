@@ -40,6 +40,7 @@ from models import (
     Position,
     Schedule,
     TelemetryEvent,
+    employee_locations,
 )
 
 from contextlib import asynccontextmanager
@@ -189,8 +190,8 @@ def build_org_snapshot(db, org):
     for e in employees:
         if e.division_id:
             emp_by_division[e.division_id].append(e)
-        if e.location_id:
-            emp_by_location[e.location_id].append(e)
+        for loc in e.locations:   # многие-ко-многим — сотрудник может быть в нескольких списках локаций одновременно
+            emp_by_location[loc.id].append(e)
 
     # Для подвала карточки (см. референс) — количество ПРЯМЫХ дочерних
     # подразделений у каждого узла.
@@ -211,13 +212,17 @@ def build_org_snapshot(db, org):
         {"location": l, "employees": emp_by_location.get(l.id, [])}
         for l in locations
     ]
-    unassigned = [e for e in employees if not e.location_id]
+    # QA-фидбек Vladimir: раньше был отдельный плоский пул "не прикреплены" —
+    # убран. Теперь источник для перетаскивания на локацию — САМИ карточки
+    # подразделений в дереве выше (сотрудник всегда состоит в своём
+    # подразделении независимо от прикрепления к локациям, поэтому дублировать
+    # его в отдельном пуле не нужно — см. base.html, аватары внутри
+    # .ovp__division теперь draggable).
 
     return {
         "division_tree": division_tree,
         "company_name": org.company_name,
         "loc_rows": loc_rows,
-        "unassigned": unassigned,
         "has_any": bool(divisions or employees or locations),
     }
 
@@ -594,10 +599,11 @@ def location_delete(request: Request, location_id: str):
     db = request.state.db
     org = request.state.org
     # QA H1 (основной репродуцированный сценарий): без этого сотрудник
-    # прикреплённый к удаляемой локации пропадает из панели ПОЛНОСТЬЮ —
-    # не в кружке (локации нет), не в пуле "не прикреплены" (location_id
-    # не None, а мёртвый id) — и вернуть его через DnD уже нельзя.
-    db.query(Employee).filter_by(organization_id=org.id, location_id=location_id).update({"location_id": None})
+    # прикреплённый к удаляемой локации пропадает из панели ПОЛНОСТЬЮ.
+    # Теперь связь многие-ко-многим через employee_locations — чистим
+    # строки ассоциативной таблицы явно (bulk-delete Location.delete()
+    # не трогает secondary-таблицу автоматически, тот же класс проблемы).
+    db.execute(employee_locations.delete().where(employee_locations.c.location_id == location_id))
     db.query(Location).filter_by(id=location_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/htt/location_list", status_code=303)
@@ -711,17 +717,14 @@ def employee_create(
     division_id: str = Form(""),
     position_id: str = Form(""),
     schedule_id: str = Form(""),
-    location_id: str = Form(""),
 ):
     # QA-фикс №10 (первая версия) требовал ВСЕ 4 связи при создании,
-    # включая локацию. Теперь это пересмотрено: появилась постоянная
-    # панель справа с drag-and-drop прикреплением сотрудника к локации
-    # (см. запрос Vladimir после пилота с CPO) — сотрудник должен мочь
-    # существовать «непривязанным» (в пуле unassigned), чтобы это
-    # прикрепление имело смысл как отдельное действие. Локация теперь
-    # необязательна при создании; подразделение/должность/график —
-    # остаются обязательными (для них альтернативного способа задать
-    # значение после создания нет).
+    # включая локацию. Пересмотрено дважды: сначала локация стала
+    # необязательной (появился drag-and-drop), теперь поле локации убрано
+    # из формы СОЗДАНИЯ совсем — раз сотрудник может быть прикреплён к
+    # НЕСКОЛЬКИМ локациям (многие-ко-многим, см. Employee.locations),
+    # единственное место назначения — панель справа (drag-and-drop или
+    # мультиселект в списке сотрудников), не форма создания.
     if not full_name.strip():
         return redirect_with_error("/vhr/href/employee", "ФИО сотрудника не может быть пустым.")
     if not (division_id and position_id and schedule_id):
@@ -737,7 +740,6 @@ def employee_create(
         division_id=division_id or None,
         position_id=position_id or None,
         schedule_id=schedule_id or None,
-        location_id=location_id or None,
     )
     db.add(e)
     db.commit()
@@ -749,10 +751,10 @@ def employee_create(
 def employee_delete(request: Request, employee_id: str):
     db = request.state.db
     org = request.state.org
-    # QA M6: без этого отметки удалённого сотрудника остаются висячими —
-    # в списке отметок и в отчёте по часам имя рендерится как "—" (name_by_id
-    # не находит сотрудника в текущем списке).
+    # QA M6 + тот же паттерн для новой связи многие-ко-многим: чистим
+    # AttendanceEvent и employee_locations явно перед удалением сотрудника.
     db.query(AttendanceEvent).filter_by(organization_id=org.id, employee_id=employee_id).delete()
+    db.execute(employee_locations.delete().where(employee_locations.c.employee_id == employee_id))
     db.query(Employee).filter_by(id=employee_id, organization_id=org.id).delete()
     db.commit()
     return RedirectResponse(url="/vhr/href/employee", status_code=303)
@@ -760,23 +762,81 @@ def employee_delete(request: Request, employee_id: str):
 
 @app.post("/vhr/href/employee/{employee_id}/assign_location")
 def employee_assign_location(request: Request, employee_id: str, location_id: str = Form("")):
-    """Drag-and-drop сотрудника на локацию в постоянной панели справа
-    (см. запрос Vladimir после пилота) — тот же location_id, что и
-    выпадающий список в форме сотрудника, просто другой способ задать
-    его. AJAX, не редирект — панель сама перерисуется на клиенте."""
+    """Drag-and-drop сотрудника на локацию в постоянной панели справа —
+    ДОБАВЛЯЕТ локацию к сотруднику (не заменяет), т.к. связь
+    многие-ко-многим (см. Employee.locations, запрос Vladimir: "1
+    человек может быть прикреплён к нескольким локациям"). Идемпотентно —
+    повторное прикрепление той же локации не создаёт дубликат и не
+    считается ошибкой. AJAX, не редирект — панель сама перерисуется."""
     db = request.state.db
     org = request.state.org
     emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
     if not emp:
         return {"ok": False, "error": "Сотрудник не найден"}
-    loc_id = location_id or None
-    if loc_id:
-        loc = db.query(Location).filter_by(id=loc_id, organization_id=org.id).first()
-        if not loc:
-            return {"ok": False, "error": "Локация не найдена"}
-    emp.location_id = loc_id
+    if not location_id:
+        return {"ok": False, "error": "Локация не указана"}
+    loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
+    if not loc:
+        return {"ok": False, "error": "Локация не найдена"}
+    if loc not in emp.locations:
+        emp.locations.append(loc)
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/vhr/href/employee/{employee_id}/detach_location")
+def employee_detach_location(request: Request, employee_id: str, location_id: str = Form("")):
+    """Снять ОДНУ конкретную локацию с сотрудника (клик по аватару внутри
+    круга локации в панели) — не трогает остальные его локации."""
+    db = request.state.db
+    org = request.state.org
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    if not emp:
+        return {"ok": False, "error": "Сотрудник не найден"}
+    loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
+    if loc and loc in emp.locations:
+        emp.locations.remove(loc)
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/vhr/href/employee/{employee_id}/sync_locations")
+def employee_sync_locations(request: Request, employee_id: str, location_ids: list[str] = Form([])):
+    """Полная замена набора локаций сотрудника — для мультиселекта в
+    employee_list.html (QA M5, клавиатурная альтернатива drag-and-drop).
+    В отличие от assign_location (добавляет одну), здесь пользователь явно
+    выбрал ИТОГОВЫЙ набор в <select multiple>, поэтому заменяем целиком."""
+    db = request.state.db
+    org = request.state.org
+    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
+    if not emp:
+        return {"ok": False, "error": "Сотрудник не найден"}
+    locs = db.query(Location).filter(Location.organization_id == org.id, Location.id.in_(location_ids)).all()
+    emp.locations = locs
     db.commit()
     return {"ok": True}
+
+
+@app.post("/vhr/hrm/division_list/{division_id}/attach_all_to_location")
+def division_attach_all_to_location(request: Request, division_id: str, location_id: str = Form("")):
+    """Перетаскивание ВСЕГО подразделения на локацию (см. запрос Vladimir:
+    "зажать кнопку на самом подразделении... прикрепить все подразделение
+    к локации") — прикрепляет к этой локации КАЖДОГО сотрудника, у кого
+    division_id совпадает (только прямые сотрудники этого подразделения,
+    не рекурсивно по дочерним подразделениям — осознанное упрощение)."""
+    db = request.state.db
+    org = request.state.org
+    loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
+    if not loc:
+        return {"ok": False, "error": "Локация не найдена"}
+    employees = db.query(Employee).filter_by(organization_id=org.id, division_id=division_id).all()
+    if not employees:
+        return {"ok": False, "error": "В этом подразделении пока нет сотрудников"}
+    for emp in employees:
+        if loc not in emp.locations:
+            emp.locations.append(loc)
+    db.commit()
+    return {"ok": True, "count": len(employees)}
 
 
 # ============================================================
@@ -886,7 +946,11 @@ def attendance_mark_create(request: Request, employee_id: str = Form(""), kind: 
     ev = AttendanceEvent(
         organization_id=org.id,
         employee_id=employee_id,
-        location_id=emp.location_id,
+        # Многие-ко-многим теперь (см. Employee.locations) — для конкретной
+        # ОТМЕТКИ фиксируем первую из его локаций (мок не даёт выбрать, у
+        # какой именно из нескольких точек отметился — упрощение для этого
+        # прохода, реальный выбор локации при отметке не в фокусе запроса).
+        location_id=emp.locations[0].id if emp.locations else None,
         kind=kind,
         marked_at=marked_at,
     )

@@ -14,10 +14,11 @@
         <td>{{ name_by_id(positions, e.position_id) }}</td>
         <td>{{ name_by_id(schedules, e.schedule_id) }}</td>
         <td>
-          <select class="emp-location-select" data-employee-id="{{ e.id }}" aria-label="Локация сотрудника «{{ e.full_name }}» (клавиатурная альтернатива перетаскиванию в панели)">
-            <option value="" {{ 'selected' if not e.location_id else '' }}>—</option>
+          <select class="emp-location-select" data-employee-id="{{ e.id }}" multiple size="3"
+                  aria-label="Локации сотрудника «{{ e.full_name }}» — можно выбрать несколько (Ctrl/Cmd+клик), клавиатурная альтернатива перетаскиванию в панели">
+            {% set attached_ids = e.locations | map(attribute='id') | list %}
             {% for l in locations %}
-            <option value="{{ l.id }}" {{ 'selected' if e.location_id == l.id else '' }}>{{ l.name }}</option>
+            <option value="{{ l.id }}" {{ 'selected' if l.id in attached_ids else '' }}>{{ l.name }}</option>
             {% endfor %}
           </select>
         </td>
@@ -48,27 +49,25 @@
       <div class="field"><label for="empSchedule">График</label>
         <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label for="empLocation">Локация <span style="color:var(--text-muted);font-weight:400;">(можно прикрепить позже, в панели справа)</span></label>
-        <select id="empLocation" name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select>
-      </div>
     </div>
+    <p class="field__hint">Локацию (можно несколько) прикрепите после создания — перетащите сотрудника на неё в панели справа, или выберите в списке выше.</p>
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>
   </form>
 </div>
 
 <script>
-// QA M5: DnD в панели справа — только мышью, нет клавиатурной/тач-
-// альтернативы и способа поменять локацию ПОСЛЕ создания сотрудника.
-// Тот же эндпоинт /assign_location, что и у drag-and-drop, просто
-// триггер — change у select, не drop.
+// QA M5 + запрос Vladimir (многие-ко-многим): мультиселект — клавиатурная
+// альтернатива drag-and-drop, теперь можно выбрать НЕСКОЛЬКО локаций сразу
+// (Ctrl/Cmd+клик). change отправляет ВЕСЬ выбранный набор — sync_locations
+// заменяет целиком, в отличие от assign_location (которая добавляет одну).
 (function () {
   document.querySelectorAll('.emp-location-select').forEach(function (sel) {
     sel.addEventListener('change', function () {
       var body = new URLSearchParams();
-      body.set('location_id', sel.value);
-      fetch('/vhr/href/employee/' + sel.dataset.employeeId + '/assign_location', { method: 'POST', body: body })
+      Array.from(sel.selectedOptions).forEach(function (opt) { body.append('location_ids', opt.value); });
+      fetch('/vhr/href/employee/' + sel.dataset.employeeId + '/sync_locations', { method: 'POST', body: body })
         .then(function (r) { return r.json(); })
-        .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); })
+        .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось сохранить локации'); })
         .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
     });
   });

@@ -56,12 +56,13 @@
       {% macro render_node(node) %}
       <li>
         <div class="org-tree__node">
-          <div class="ovp__division-head">{{ node.division.name }}</div>
+          <div class="ovp__division-head" draggable="true" data-division-id="{{ node.division.id }}"
+               title="Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников этого подразделения">{{ node.division.name }}</div>
           <div class="ovp__division-body">
             {% if node.employees %}
             <div class="ovp__avatar-row">
               {% for e in node.employees %}
-              <span class="ovp__avatar-mini" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
+              <span class="ovp__avatar-mini" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }} — перетащите на локацию">{{ display_name(e.full_name) }}</span>
               {% endfor %}
             </div>
             <div class="ovp__division-count">{{ node.employees|length }} {{ employees_word(node.employees|length) }}</div>
@@ -83,7 +84,11 @@
            было раньше) — компания сверху, от неё ветки к верхнеуровневым
            подразделениям, под каждым — его дети, рекурсивно. Классический
            CSS-приём с коннекторами через ::before/::after (см. styles.css
-           .org-tree) — по референсу реального Verifix. -->
+           .org-tree) — по референсу реального Verifix. Это дерево ТАКЖЕ
+           источник для прикрепления к локации (см. запрос Vladimir):
+           отдельного плоского "пула сотрудников" больше нет — тащим либо
+           конкретного человека (аватар внутри карточки), либо всё
+           подразделение целиком (шапка карточки). -->
       <div class="org-tree-scroll">
         <ul class="org-tree">
           <li>
@@ -100,58 +105,85 @@
       </div>
 
       <div class="ovp__title" style="margin-top:26px;">Локации</div>
-      <p class="ovp__hint">Перетащите сотрудника на локацию, чтобы прикрепить.</p>
+      <p class="ovp__hint">Перетащите сотрудника ИЛИ целое подразделение (за шапку карточки) сюда, чтобы прикрепить. Один человек может быть прикреплён к нескольким локациям — перетаскивание добавляет, не заменяет. Клик по аватару внутри круга — снять именно эту локацию.</p>
 
       <div class="ovp__locations">
         {% for row in org_snapshot.loc_rows %}
         <div class="ovp__location">
           <div class="ovp__location-circle" data-location-id="{{ row.location.id }}">
             {% for e in row.employees %}
-            <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
+            <span class="ovp__avatar ovp__avatar--detach" data-employee-id="{{ e.id }}" data-location-id="{{ row.location.id }}"
+                  title="{{ e.full_name }} — клик, чтобы снять с этой локации">{{ display_name(e.full_name) }}</span>
             {% endfor %}
           </div>
           <div class="ovp__location-name">{{ row.location.name }}</div>
         </div>
         {% endfor %}
       </div>
-
-      {% if org_snapshot.unassigned %}
-      <div class="ovp__unassigned-title">Не прикреплены</div>
-      <div class="ovp__unassigned-pool" data-location-id="">
-        {% for e in org_snapshot.unassigned %}
-        <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
-        {% endfor %}
-      </div>
-      {% endif %}
     </aside>
   </div>
 
   <script>
-    // Drag-and-drop сотрудника на локацию в постоянной панели справа —
-    // AJAX на /assign_location, затем полная перезагрузка страницы:
-    // так и левая часть (если на ней тоже что-то относится к сотруднику),
-    // и сама панель гарантированно останутся в консистентном состоянии
-    // с БД, без риска разойтись с реальностью из-за ручной правки DOM.
+    // Drag-and-drop на локацию в постоянной панели справа — теперь два
+    // типа источника (см. запрос Vladimir):
+    //   1) конкретный сотрудник (.ovp__avatar-mini внутри карточки
+    //      подразделения) → добавляет ЕМУ эту локацию (не заменяет —
+    //      многие-ко-многим, /assign_location);
+    //   2) целое подразделение (шапка карточки .ovp__division-head) →
+    //      добавляет эту локацию ВСЕМ его сотрудникам
+    //      (/attach_all_to_location).
+    // Плюс клик по аватару ВНУТРИ круга локации — снять именно эту
+    // локацию с этого сотрудника (/detach_location), не трогая другие.
     (function () {
-      var dragged = null;
-      document.querySelectorAll('.ovp__avatar[draggable="true"]').forEach(function (av) {
-        av.addEventListener('dragstart', function () { dragged = av.dataset.employeeId; av.classList.add('is-dragging'); });
+      var dragged = null;   // { type: 'employee'|'division', id: '...' }
+
+      document.querySelectorAll('.ovp__avatar-mini[draggable="true"]').forEach(function (av) {
+        av.addEventListener('dragstart', function () {
+          dragged = { type: 'employee', id: av.dataset.employeeId };
+          av.classList.add('is-dragging');
+        });
         av.addEventListener('dragend', function () { av.classList.remove('is-dragging'); });
       });
-      document.querySelectorAll('.ovp__location-circle, .ovp__unassigned-pool').forEach(function (zone) {
+
+      document.querySelectorAll('.ovp__division-head[draggable="true"]').forEach(function (head) {
+        head.addEventListener('dragstart', function () {
+          dragged = { type: 'division', id: head.dataset.divisionId };
+          head.classList.add('is-dragging');
+        });
+        head.addEventListener('dragend', function () { head.classList.remove('is-dragging'); });
+      });
+
+      document.querySelectorAll('.ovp__location-circle').forEach(function (zone) {
         zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('is-drop-target'); });
         zone.addEventListener('dragleave', function () { zone.classList.remove('is-drop-target'); });
         zone.addEventListener('drop', function (e) {
           e.preventDefault();
           zone.classList.remove('is-drop-target');
           if (!dragged) return;
+          var locationId = zone.dataset.locationId || '';
+          var url = dragged.type === 'division'
+            ? '/vhr/hrm/division_list/' + dragged.id + '/attach_all_to_location'
+            : '/vhr/href/employee/' + dragged.id + '/assign_location';
           var body = new URLSearchParams();
-          body.set('location_id', zone.dataset.locationId || '');
-          fetch('/vhr/href/employee/' + dragged + '/assign_location', { method: 'POST', body: body })
+          body.set('location_id', locationId);
+          fetch(url, { method: 'POST', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить сотрудника'); })
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить'); })
             .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
           dragged = null;
+        });
+      });
+
+      // Клик по аватару внутри круга локации — снять эту одну связь.
+      document.querySelectorAll('.ovp__avatar--detach').forEach(function (av) {
+        av.addEventListener('click', function () {
+          if (!window.confirm('Снять «' + av.title.split(' — ')[0] + '» с этой локации?')) return;
+          var body = new URLSearchParams();
+          body.set('location_id', av.dataset.locationId);
+          fetch('/vhr/href/employee/' + av.dataset.employeeId + '/detach_location', { method: 'POST', body: body })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось снять локацию'); })
+            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
         });
       });
     })();

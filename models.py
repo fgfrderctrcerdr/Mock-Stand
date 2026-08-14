@@ -16,7 +16,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, String
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, String, Table
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -115,7 +115,13 @@ class Employee(Base):
     division_id = Column(String, ForeignKey("divisions.id"), nullable=True)
     position_id = Column(String, ForeignKey("positions.id"), nullable=True)
     schedule_id = Column(String, ForeignKey("schedules.id"), nullable=True)
-    location_id = Column(String, ForeignKey("locations.id"), nullable=True)
+    # QA-фидбек Vladimir: "1 человек может быть прикреплён к нескольким
+    # локациям" — было Column(ForeignKey) один-к-одному, теперь
+    # многие-ко-многим через employee_locations (см. ниже). Колонку
+    # location_id убрал совсем — единственный способ задать локацию
+    # теперь через таблицу employee_locations (drag-and-drop в панели
+    # или мультиселект в employee_list.html).
+    locations = relationship("Location", secondary="employee_locations", backref="employees")
 
     # Инвайт в приложение (по мотивам реального экрана Настройки → Пользователи →
     # тумблер "Телефон + invite"): none → invited (эмулируем отправку SMS) →
@@ -130,11 +136,25 @@ class Employee(Base):
     organization = relationship("Organization", back_populates="employees")
 
 
+# Ассоциативная таблица «сотрудник ↔ локация» (многие-ко-многим). Без
+# отдельной ORM-модели — просто Table, как рекомендует SQLAlchemy для
+# чистых many-to-many без дополнительных полей на связи.
+employee_locations = Table(
+    "employee_locations",
+    Base.metadata,
+    Column("employee_id", String, ForeignKey("employees.id"), primary_key=True),
+    Column("location_id", String, ForeignKey("locations.id"), primary_key=True),
+)
+
+
 class AttendanceEvent(Base):
     __tablename__ = "attendance_events"
     id = Column(String, primary_key=True, default=gen_uuid)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False, index=True)
     employee_id = Column(String, ForeignKey("employees.id"), nullable=False, index=True)
+    # Это НЕ "назначенная" локация сотрудника (той больше нет как единственной
+    # ссылки, см. Employee.locations выше) — это то, где КОНКРЕТНО произошла
+    # ЭТА отметка (одна из локаций сотрудника на момент отметки).
     location_id = Column(String, ForeignKey("locations.id"), nullable=True)
     kind = Column(String, nullable=False)  # "in" | "out"
     marked_at = Column(DateTime(timezone=True), default=utcnow)
