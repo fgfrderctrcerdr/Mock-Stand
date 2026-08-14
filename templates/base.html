@@ -61,7 +61,7 @@
             {% if node.employees %}
             <div class="ovp__avatar-row">
               {% for e in node.employees %}
-              <span class="ovp__avatar-mini" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+              <span class="ovp__avatar-mini" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
               {% endfor %}
             </div>
             <div class="ovp__division-count">{{ node.employees|length }} {{ employees_word(node.employees|length) }}</div>
@@ -107,7 +107,7 @@
         <div class="ovp__location">
           <div class="ovp__location-circle" data-location-id="{{ row.location.id }}">
             {% for e in row.employees %}
-            <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+            <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
             {% endfor %}
           </div>
           <div class="ovp__location-name">{{ row.location.name }}</div>
@@ -119,7 +119,7 @@
       <div class="ovp__unassigned-title">Не прикреплены</div>
       <div class="ovp__unassigned-pool" data-location-id="">
         {% for e in org_snapshot.unassigned %}
-        <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ initials(e.full_name) }}</span>
+        <span class="ovp__avatar" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}">{{ display_name(e.full_name) }}</span>
         {% endfor %}
       </div>
       {% endif %}

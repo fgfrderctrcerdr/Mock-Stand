@@ -231,6 +231,19 @@ def initials(full_name: str) -> str:
     return (parts[0][0] + parts[1][0]).upper()
 
 
+def display_name(full_name: str) -> str:
+    """Фамилия.И — по просьбе Vladimir: два инициала (initials()) не
+    давали понять, кто именно это, в бейджах на панели-оргструктуре.
+    Сотрудники заводятся в формате "Фамилия Имя" (см. placeholder формы
+    сотрудника), поэтому первое слово — фамилия, второе — имя."""
+    parts = [p for p in full_name.strip().split() if p]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0]
+    return parts[0] + "." + parts[1][0].upper()
+
+
 # QA M3: время отметок хранится в UTC (правильно для БД), но отображалось
 # без конвертации — для Ташкента это разница в 5 часов, сбивает восприятие
 # демо ("вот сейчас отметился" показывало время на 5ч назад). Конвертируем
@@ -275,6 +288,7 @@ def base_ctx(request: Request, page_title: str):
         "error": request.query_params.get("error"),   # QA-фикс №4 — банер ошибки серверной валидации
         "org_snapshot": build_org_snapshot(request.state.db, request.state.org),
         "initials": initials,
+        "display_name": display_name,
         "to_local": to_local,
         "employees_word": employees_word,
     }

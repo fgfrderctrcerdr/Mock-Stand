@@ -32,6 +32,7 @@ var VERIFIX_TOUR_STEPS = [
     inputSelector: 'input[name="company_name"]',
     selector: '[data-tour="add"]',
     check: companyProfileSet,
+    autoAdvance: true,   // компания одна, не список — "добавить ещё" здесь не имеет смысла, сразу дальше
     emptyWarning: 'Заполните название компании, сферу деятельности и свою роль — без этого нельзя продолжить.',
   },
   {
