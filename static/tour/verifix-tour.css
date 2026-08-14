@@ -102,18 +102,27 @@
   box-shadow: 0 6px 20px rgba(17,24,39,0.08); overflow: hidden; color: #111827;
 }
 .vtour-panel__head { display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid #f3f4f6; }
+  padding: 12px 16px; border-bottom: 1px solid #f3f4f6; }
 .vtour-panel__title { font-weight: 700; font-size: 14px; }
-.vtour-x { border: 0; background: #f3f4f6; width: 26px; height: 26px; border-radius: 7px;
-  cursor: pointer; font-size: 16px; line-height: 1; color: #6b7280; }
-.vtour-panel.is-min .vtour-progress,
-.vtour-panel.is-min .vtour-list,
-.vtour-panel.is-min .vtour-done { display: none; }
+.vtour-toggle { border: 0; background: #f3f4f6; width: 26px; height: 26px; border-radius: 7px;
+  cursor: pointer; font-size: 12px; line-height: 1; color: #6b7280; }
+.vtour-toggle:hover { background: #e5e7eb; color: #111827; }
+
+/* По умолчанию — компактный вид (см. фидбек: полный список из 9 шагов
+   выталкивал форму за экран и выглядел несимметрично). Список — только
+   когда .is-expanded (см. кнопка vtour-toggle). Прогресс-бар и строка
+   "Сейчас: ..." — ВСЕГДА видны, компактный вид не пустая строка. */
+.vtour-list, .vtour-done { display: none; }
+.vtour-panel.is-expanded .vtour-list { display: flex; }
+.vtour-done { display: block; }   /* баннер завершения — всегда виден, даже свёрнутая панель не должна быть пустой в этом состоянии */
 
 .vtour-progress { display: flex; align-items: center; gap: 10px; padding: 12px 16px 4px; }
 .vtour-progress__bar { flex: 1; height: 6px; background: #f3f4f6; border-radius: 99px; overflow: hidden; }
 .vtour-progress__fill { height: 100%; background: linear-gradient(90deg,#2563eb,#2e74ff); border-radius: 99px; transition: width .4s; }
 .vtour-progress__label { font-size: 12px; font-weight: 600; color: #6b7280; }
+
+.vtour-panel__current { padding: 4px 16px 12px; font-size: 13px; color: #374151; }
+.vtour-panel__current b { color: #111827; }
 
 .vtour-list { display: flex; flex-direction: column; padding: 8px; max-height: 46vh; overflow-y: auto; }
 .vtour-item { display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%;

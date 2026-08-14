@@ -21,7 +21,7 @@
   'use strict';
 
   var LS_KEY = 'verifix_tour_progress';
-  var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null, justAdvanced: false };
+  var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null, justAdvanced: false, panelExpanded: false };
 
   function saveProgress() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.done)); } catch (e) {} }
   function loadProgress() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { return {}; } }
@@ -150,10 +150,23 @@
     state.activeId = active ? active.id : null;
 
     // --- Панель-чеклист ---
-    var panel = el('div', 'vtour-panel');
+    //
+    // ФИДБЕК: по умолчанию открытый список из 9 шагов занимал слишком
+    // много вертикального места и выталкивал форму компании за экран
+    // ("загораживает часть информации"), плюс выглядел несимметрично
+    // (высокая узкая карточка на пустом фоне). Теперь по умолчанию
+    // СВЁРНУТА — но свёрнутый вид не пустая строка: видно прогресс-бар
+    // и название текущего шага без разворачивания. Полный список с
+    // описаниями — по клику, состояние (развёрнута/свёрнута) помнится
+    // между переходами по страницам (localStorage), чтобы не сбрасывалось
+    // на каждый клик по навигации.
+    var panel = el('div', 'vtour-panel' + (state.panelExpanded ? ' is-expanded' : ''));
+    var activeStepObj = state.steps.filter(function (s) { return s.id === state.activeId; })[0];
+
     var head = el('div', 'vtour-panel__head',
       '<div class="vtour-panel__title">' + esc(state.opts.title || 'Настройка Verifix') + '</div>' +
-      '<button class="vtour-x" title="Свернуть">–</button>');
+      '<button class="vtour-toggle" title="' + (state.panelExpanded ? 'Свернуть' : 'Развернуть весь список') + '">' +
+      (state.panelExpanded ? '▴' : '▾') + '</button>');
     panel.appendChild(head);
 
     var prog = el('div', 'vtour-progress',
@@ -161,6 +174,10 @@
       (total ? Math.round(doneCount / total * 100) : 0) + '%"></div></div>' +
       '<span class="vtour-progress__label">' + doneCount + ' / ' + total + '</span>');
     panel.appendChild(prog);
+
+    if (activeStepObj) {
+      panel.appendChild(el('div', 'vtour-panel__current', 'Сейчас: <b>' + esc(activeStepObj.title) + '</b>'));
+    }
 
     var list = el('div', 'vtour-list');
     state.steps.forEach(function (s) {
@@ -186,8 +203,10 @@
     var slot = panelSlot();
     if (slot) slot.appendChild(panel); else root.appendChild(panel);
 
-    head.querySelector('.vtour-x').addEventListener('click', function () {
-      panel.classList.toggle('is-min');
+    panel.querySelector('.vtour-toggle').addEventListener('click', function () {
+      state.panelExpanded = !state.panelExpanded;
+      try { localStorage.setItem(LS_KEY + '_panel_expanded', state.panelExpanded ? '1' : '0'); } catch (e) {}
+      render();
     });
 
     // --- Coach-mark на активном шаге ---
@@ -545,6 +564,7 @@
       state.opts = opts || {};
       state.done = loadProgress();
       state.satisfied = {};
+      try { state.panelExpanded = localStorage.getItem(LS_KEY + '_panel_expanded') === '1'; } catch (e) { state.panelExpanded = false; }
       var active = firstUndone();
       state.activeId = active ? active.id : null;
 
