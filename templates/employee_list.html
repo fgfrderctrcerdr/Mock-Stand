@@ -14,13 +14,17 @@
         <td>{{ name_by_id(positions, e.position_id) }}</td>
         <td>{{ name_by_id(schedules, e.schedule_id) }}</td>
         <td>
-          <select class="emp-location-select" data-employee-id="{{ e.id }}" multiple size="3"
-                  aria-label="Локации сотрудника «{{ e.full_name }}» — можно выбрать несколько (Ctrl/Cmd+клик), клавиатурная альтернатива перетаскиванию в панели">
+          <div class="loc-pill-group" data-employee-id="{{ e.id }}">
             {% set attached_ids = e.locations | map(attribute='id') | list %}
             {% for l in locations %}
-            <option value="{{ l.id }}" {{ 'selected' if l.id in attached_ids else '' }}>{{ l.name }}</option>
+            <label class="loc-pill {{ 'is-selected' if l.id in attached_ids else '' }}">
+              <input type="checkbox" value="{{ l.id }}" {{ 'checked' if l.id in attached_ids else '' }} />
+              {{ l.name }}
+            </label>
+            {% else %}
+            <span class="ovp__empty-note">Локаций пока нет</span>
             {% endfor %}
-          </select>
+          </div>
         </td>
         <td>
           <form method="post" action="/vhr/href/employee/{{ e.id }}/delete" style="display:inline"
@@ -56,19 +60,24 @@
 </div>
 
 <script>
-// QA M5 + запрос Vladimir (многие-ко-многим): мультиселект — клавиатурная
-// альтернатива drag-and-drop, теперь можно выбрать НЕСКОЛЬКО локаций сразу
-// (Ctrl/Cmd+клик). change отправляет ВЕСЬ выбранный набор — sync_locations
-// заменяет целиком, в отличие от assign_location (которая добавляет одну).
+// QA M5 + запрос Vladimir (многие-ко-многим): раньше здесь был нативный
+// <select multiple> — по фидбеку "отдаёт каким-то экзелем", визуально не
+// сочетался со стилем остального приложения. Теперь пилюли-чекбоксы
+// (тот же стиль, что .chip/.ovp__avatar-mini) — клавиатурная альтернатива
+// drag-and-drop, просто симпатичнее. change одной пилюли отправляет ВЕСЬ
+// набор отмеченных — sync_locations заменяет целиком.
 (function () {
-  document.querySelectorAll('.emp-location-select').forEach(function (sel) {
-    sel.addEventListener('change', function () {
-      var body = new URLSearchParams();
-      Array.from(sel.selectedOptions).forEach(function (opt) { body.append('location_ids', opt.value); });
-      fetch('/vhr/href/employee/' + sel.dataset.employeeId + '/sync_locations', { method: 'POST', body: body })
-        .then(function (r) { return r.json(); })
-        .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось сохранить локации'); })
-        .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+  document.querySelectorAll('.loc-pill-group').forEach(function (group) {
+    group.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        cb.closest('.loc-pill').classList.toggle('is-selected', cb.checked);
+        var body = new URLSearchParams();
+        group.querySelectorAll('input[type="checkbox"]:checked').forEach(function (c) { body.append('location_ids', c.value); });
+        fetch('/vhr/href/employee/' + group.dataset.employeeId + '/sync_locations', { method: 'POST', body: body })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось сохранить локации'); })
+          .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+      });
     });
   });
 })();

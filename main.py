@@ -283,6 +283,15 @@ def base_ctx(request: Request, page_title: str):
             for path, _, _ in col["links"]:
                 if path == request.url.path:
                     current_section = section["label"]
+
+    # Для гида по прикреплению к локации (два разных действия — DOM после
+    # обоих выглядит ОДИНАКОВО, поэтому check() тура не может отличить их
+    # по факту результата; смотрим на факт СОБЫТИЯ вместо этого).
+    db = request.state.db
+    org_id = request.state.org.id
+    individual_attach_done = db.query(TelemetryEvent).filter_by(organization_id=org_id, type="individual_location_attach").first() is not None
+    division_attach_done = db.query(TelemetryEvent).filter_by(organization_id=org_id, type="division_location_attach").first() is not None
+
     return {
         "request": request,
         "page_title": page_title,
@@ -296,6 +305,8 @@ def base_ctx(request: Request, page_title: str):
         "display_name": display_name,
         "to_local": to_local,
         "employees_word": employees_word,
+        "individual_attach_done": individual_attach_done,
+        "division_attach_done": division_attach_done,
     }
 
 
@@ -781,6 +792,7 @@ def employee_assign_location(request: Request, employee_id: str, location_id: st
     if loc not in emp.locations:
         emp.locations.append(loc)
         db.commit()
+    log_event(request, "individual_location_attach", {"employee_id": employee_id, "location_id": location_id})
     return {"ok": True}
 
 
@@ -814,6 +826,8 @@ def employee_sync_locations(request: Request, employee_id: str, location_ids: li
     locs = db.query(Location).filter(Location.organization_id == org.id, Location.id.in_(location_ids)).all()
     emp.locations = locs
     db.commit()
+    if locs:
+        log_event(request, "individual_location_attach", {"employee_id": employee_id, "location_ids": location_ids})
     return {"ok": True}
 
 
@@ -836,6 +850,7 @@ def division_attach_all_to_location(request: Request, division_id: str, location
         if loc not in emp.locations:
             emp.locations.append(loc)
     db.commit()
+    log_event(request, "division_location_attach", {"division_id": division_id, "location_id": location_id})
     return {"ok": True, "count": len(employees)}
 
 

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="/static/tour/verifix-tour.css" />
 </head>
 <body>
+  {% if individual_attach_done %}<div data-individual-location-attach="1" style="display:none"></div>{% endif %}
+  {% if division_attach_done %}<div data-division-location-attach="1" style="display:none"></div>{% endif %}
   <header class="topbar">
     <div class="topbar__brand">
       <a href="/" class="topbar__brand-link">
@@ -110,12 +112,30 @@
       <div class="ovp__locations">
         {% for row in org_snapshot.loc_rows %}
         <div class="ovp__location">
+          {% if row.employees|length > 3 %}
+          <!-- Больше 3 — аватары физически не влезали в круг и выезжали
+               за его пределы (см. фидбек). Вместо них — компактный
+               значок "•••" тем же зелёным, что и аватары; полный список
+               выезжает сбоку по клику, отдельными карточками. -->
+          <div class="ovp__location-circle ovp__location-circle--overflow" data-location-id="{{ row.location.id }}">
+            <button type="button" class="ovp__overflow-dots" data-location-toggle="{{ row.location.id }}"
+                    title="Показать всех {{ row.employees|length }} сотрудников">•••</button>
+          </div>
+          <div class="ovp__location-overflow-list" id="loc-overflow-{{ row.location.id }}" hidden>
+            <div class="ovp__location-overflow-title">{{ row.location.name }} — {{ row.employees|length }} {{ employees_word(row.employees|length) }}</div>
+            {% for e in row.employees %}
+            <div class="ovp__overflow-cell" data-employee-id="{{ e.id }}" data-location-id="{{ row.location.id }}"
+                 title="Клик — снять с этой локации">{{ e.full_name }}</div>
+            {% endfor %}
+          </div>
+          {% else %}
           <div class="ovp__location-circle" data-location-id="{{ row.location.id }}">
             {% for e in row.employees %}
             <span class="ovp__avatar ovp__avatar--detach" data-employee-id="{{ e.id }}" data-location-id="{{ row.location.id }}"
                   title="{{ e.full_name }} — клик, чтобы снять с этой локации">{{ display_name(e.full_name) }}</span>
             {% endfor %}
           </div>
+          {% endif %}
           <div class="ovp__location-name">{{ row.location.name }}</div>
         </div>
         {% endfor %}
@@ -174,8 +194,9 @@
         });
       });
 
-      // Клик по аватару внутри круга локации — снять эту одну связь.
-      document.querySelectorAll('.ovp__avatar--detach').forEach(function (av) {
+      // Клик по аватару внутри круга локации, ИЛИ по ячейке в
+      // развёрнутом списке (>3 сотрудников) — снять эту одну связь.
+      document.querySelectorAll('.ovp__avatar--detach, .ovp__overflow-cell').forEach(function (av) {
         av.addEventListener('click', function () {
           if (!window.confirm('Снять «' + av.title.split(' — ')[0] + '» с этой локации?')) return;
           var body = new URLSearchParams();
@@ -184,6 +205,14 @@
             .then(function (r) { return r.json(); })
             .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось снять локацию'); })
             .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+        });
+      });
+
+      // "•••" при >3 сотрудниках — тоггл полного списка ячеек под локацией.
+      document.querySelectorAll('[data-location-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var list = document.getElementById('loc-overflow-' + btn.dataset.locationToggle);
+          if (list) list.hidden = !list.hidden;
         });
       });
     })();

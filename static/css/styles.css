@@ -324,3 +324,35 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
    .vtour-panel становится прямым участником потока .content-full, и
    sticky считается относительно реальной высоты страницы, не обёртки. */
 #tourPanelSlot { display: contents; }
+
+/* Пилюли-чекбоксы локаций у сотрудника (было — нативный <select multiple>,
+   выглядел "как экзель", см. фидбек) — тот же стиль, что .chip. */
+.loc-pill-group { display: flex; flex-wrap: wrap; gap: 6px; max-width: 220px; }
+.loc-pill {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px;
+  border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-muted);
+  cursor: pointer; user-select: none; transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.loc-pill input { margin: 0; accent-color: var(--primary); }
+.loc-pill.is-selected { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-hover); font-weight: 500; }
+.loc-pill:hover { border-color: var(--primary); }
+
+/* Схлопывание локации при >3 сотрудниках (см. фидбек — раньше аватары
+   вываливались за пределы круга) — "•••" тем же зелёным, что аватары;
+   полный список отдельными прямоугольными ячейками под локацией. */
+.ovp__overflow-dots {
+  width: 100%; height: 100%; border: none; background: transparent; cursor: pointer;
+  font-size: 20px; font-weight: 700; color: #166534; letter-spacing: 2px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ovp__location-overflow-list {
+  width: 100%; margin-top: 8px; background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px; box-sizing: border-box;
+}
+.ovp__location-overflow-title { font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+.ovp__overflow-cell {
+  background: #dcfce7; color: #166534; border-radius: 8px; padding: 7px 10px;
+  font-size: 12.5px; font-weight: 500; margin-bottom: 5px; cursor: pointer;
+}
+.ovp__overflow-cell:hover { background: #bbf7d0; }
+.ovp__overflow-cell:last-child { margin-bottom: 0; }
