@@ -236,7 +236,13 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 .org-tree, .org-tree ul {
   list-style: none; margin: 0; padding: 0; display: flex; position: relative;
 }
-.org-tree { justify-content: center; }
+/* QA (скрин): было justify-content:center — классический баг центрирования
+   flex-контейнера с overflow-x:auto: когда контент шире контейнера,
+   переполнение добавляется СИММЕТРИЧНО с обеих сторон, но scrollLeft не
+   может быть отрицательным — левая половина переполнения физически
+   недостижима скроллом, хотя scrollbar визуально показан. Без центрирования
+   контент начинается от левого края — весь целиком доскроллиается. */
+.org-tree { justify-content: flex-start; }
 .org-tree ul { padding-top: 24px; }
 .org-tree li {
   display: flex; flex-direction: column; align-items: center;

@@ -88,6 +88,11 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/href/employee',
     inputSelector: '#empFullName',
     selector: '[data-tour="add"]',
+    // По фидбеку: employees→attach_employee→attach_division — единая
+    // демонстрация трёх связанных действий, пауза с "Минимум выполнен"
+    // не нужна ПОСРЕДИ неё — только в самом конце цепочки (см.
+    // attach_division ниже, у него autoAdvance нет специально).
+    autoAdvance: true,
     emptyWarning: 'Сотрудник — это тот, кто и будет отмечаться и получать зарплату. Без него оставшиеся шаги (приглашение, отметка, отчёт) не имеют смысла.',
     check: gridHasRows,
   },
@@ -98,6 +103,7 @@ var VERIFIX_TOUR_STEPS = [
     route: null,   // панель справа есть на любой странице — не привязываем к конкретному экрану
     inputSelector: '.ovp__avatar-mini[draggable="true"]',
     selector: '.ovp__location-circle',
+    autoAdvance: true,   // сразу продолжаем на attach_division, без промежуточной кнопки "Далее"
     emptyWarning: 'Пока ни один сотрудник не прикреплён ни к одной локации — без этого не с чем будет считать отчёт по конкретной точке.',
     check: function () { return !!document.querySelector('[data-individual-location-attach]'); },
   },
@@ -108,6 +114,8 @@ var VERIFIX_TOUR_STEPS = [
     route: null,
     inputSelector: '.ovp__division-head[draggable="true"]',
     selector: '.ovp__location-circle',
+    // autoAdvance намеренно НЕТ — это конец цепочки из трёх шагов, здесь
+    // и должна появиться пауза "Минимум выполнен" + кнопка "Далее".
     emptyWarning: 'Это отдельное действие от прикрепления одного сотрудника — попробуйте перетащить именно шапку карточки подразделения, целиком.',
     check: function () { return !!document.querySelector('[data-division-location-attach]'); },
   },
