@@ -13,10 +13,12 @@
         <td>{{ e.full_name }}</td>
         <td>
           {% if e.invite_status == 'none' %}
-          <form method="post" action="/vhr/admin/users/{{ e.id }}/invite" style="display:flex;gap:6px;">
+          <form method="post" action="/vhr/admin/users/{{ e.id }}/invite" style="display:flex;gap:6px;" class="invite-form">
             <input type="tel" name="phone" id="phone-{{ e.id }}" aria-label="Телефон сотрудника {{ e.full_name }}"
-                   placeholder="+998 90 123 45 67" required style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;" />
-            <button class="btn btn--primary btn--sm" type="submit" data-tour="add">Пригласить</button>
+                   value="{{ e.phone or '' }}" placeholder="+998 90 123 45 67" required
+                   style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;" />
+            <button class="btn btn--primary btn--sm invite-submit" type="submit" data-tour="add"
+                    title="Заполните телефон, чтобы отправить приглашение">Пригласить</button>
           </form>
           {% else %}
           {{ e.phone }}
@@ -49,4 +51,20 @@
 
   <p class="field__hint">Сотрудник получает SMS и сам подтверждает приглашение в приложении.</p>
 </div>
+
+<script>
+// Запрос Vladimir: если телефон не был заполнен при создании сотрудника,
+// пригласить нельзя, пока не заполнят его здесь — кнопка визуально
+// заблокирована (не просто HTML5 required, который проверяет только в
+// момент сабмита) и синхронно реагирует на ввод.
+(function () {
+  document.querySelectorAll('.invite-form').forEach(function (form) {
+    var input = form.querySelector('input[name="phone"]');
+    var btn = form.querySelector('.invite-submit');
+    function sync() { btn.disabled = !input.value.trim(); }
+    input.addEventListener('input', sync);
+    sync();
+  });
+})();
+</script>
 {% endblock %}

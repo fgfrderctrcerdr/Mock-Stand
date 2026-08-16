@@ -293,6 +293,19 @@ def base_ctx(request: Request, page_title: str):
     individual_attach_done = db.query(TelemetryEvent).filter_by(organization_id=org_id, type="individual_location_attach").first() is not None
     division_attach_done = db.query(TelemetryEvent).filter_by(organization_id=org_id, type="division_location_attach").first() is not None
 
+    # CPO-фидбек: "система запрашивает подтверждение перехода, если не
+    # все сотрудники привязаны к локации" — считаем это на сервере (проще
+    # и надёжнее одного JOIN, чем гонять всех сотрудников в JS), кладём
+    # как маркер для клиентской проверки перед "Далее" (см. steps.js
+    # attach_division.confirmBeforeAdvance).
+    has_unattached_employees = (
+        db.query(Employee)
+        .filter_by(organization_id=org_id)
+        .filter(~Employee.locations.any())
+        .first()
+        is not None
+    )
+
     return {
         "request": request,
         "page_title": page_title,
@@ -308,6 +321,7 @@ def base_ctx(request: Request, page_title: str):
         "employees_word": employees_word,
         "individual_attach_done": individual_attach_done,
         "division_attach_done": division_attach_done,
+        "has_unattached_employees": has_unattached_employees,
     }
 
 
@@ -731,6 +745,7 @@ def employee_create(
     division_id: str = Form(""),
     position_id: str = Form(""),
     schedule_id: str = Form(""),
+    phone: str = Form(""),
 ):
     # QA-фикс №10 (первая версия) требовал ВСЕ 4 связи при создании,
     # включая локацию. Пересмотрено дважды: сначала локация стала
@@ -754,6 +769,7 @@ def employee_create(
         division_id=division_id or None,
         position_id=position_id or None,
         schedule_id=schedule_id or None,
+        phone=phone.strip() or None,   # необязательно — можно дозаполнить позже на странице "Пользователи"
     )
     db.add(e)
     db.commit()
@@ -887,6 +903,34 @@ def division_attach_all_to_location(request: Request, division_id: str, location
 
     db.commit()
     log_event(request, "division_location_attach", {"division_id": division_id, "location_id": location_id})
+    return {"ok": True, "count": len(employees)}
+
+
+@app.post("/vhr/company/attach_all_to_location")
+def company_attach_all_to_location(request: Request, location_id: str = Form("")):
+    """CPO-фидбек: "добавить опцию прикрепления всей компании к выбранной
+    локации" — тот же жест, что и у подразделения, только источник —
+    корневой узел дерева (см. base.html). В ОТЛИЧИЕ от подразделения —
+    это разовое действие, НЕ постоянное правило: новый сотрудник, заведённый
+    после этого в ЛЮБОЕ подразделение, автоматически сюда не попадёт (кроме
+    случая, когда для его конкретного подразделения отдельно установлено
+    правило через attach_all_to_location). Осознанное упрощение — правило
+    "вся компания" затрагивало бы вообще всех сотрудников независимо от
+    подразделения, что плохо сочетается с моделью правил на уровне
+    подразделения; если понадобится симметрично — обсудим отдельно."""
+    db = request.state.db
+    org = request.state.org
+    loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
+    if not loc:
+        return {"ok": False, "error": "Локация не найдена"}
+    employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    if not employees:
+        return {"ok": False, "error": "В компании пока нет сотрудников"}
+    for emp in employees:
+        if loc not in emp.locations:
+            emp.locations.append(loc)
+    db.commit()
+    log_event(request, "individual_location_attach", {"scope": "company", "location_id": location_id})
     return {"ok": True, "count": len(employees)}
 
 

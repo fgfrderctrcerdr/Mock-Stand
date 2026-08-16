@@ -267,7 +267,10 @@
     }
 
     var primary = inputTarget || actionTarget;
-    var visuals = primary ? highlight(primary, inputTarget && actionTarget !== inputTarget ? actionTarget : null) : null;
+    // По запросу: для некоторых шагов (сейчас — invite) нужна только
+    // подсветка (рамка+затемнение), без стрелки к кнопке.
+    var arrowTarget = step.noArrow ? null : (inputTarget && actionTarget !== inputTarget ? actionTarget : null);
+    var visuals = primary ? highlight(primary, arrowTarget) : null;
     var pop = showPopover(primary, step, 'ok');
 
     // По фокусу на подсвеченное поле — убираем и затемнение, и текст
@@ -316,6 +319,13 @@
     wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
       Promise.resolve(step.check(state.opts)).then(function (ok) {
         if (ok) {
+          // CPO-фидбек: некоторые шаги (сейчас — attach_division) должны
+          // спросить подтверждение перед переходом дальше, если что-то
+          // важное не выполнено (не обязательно, просто предупреждение).
+          if (step.confirmBeforeAdvance) {
+            var msg = step.confirmBeforeAdvance();
+            if (msg && !window.confirm(msg)) return;
+          }
           markDone(step.id);
         } else {
           state.satisfied[step.id] = false;

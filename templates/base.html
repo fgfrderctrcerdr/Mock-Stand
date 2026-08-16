@@ -10,6 +10,7 @@
 <body>
   {% if individual_attach_done %}<div data-individual-location-attach="1" style="display:none"></div>{% endif %}
   {% if division_attach_done %}<div data-division-location-attach="1" style="display:none"></div>{% endif %}
+  {% if has_unattached_employees %}<div data-has-unattached-employees="1" style="display:none"></div>{% endif %}
   <header class="topbar">
     <div class="topbar__brand">
       <a href="/" class="topbar__brand-link">
@@ -94,7 +95,8 @@
       <div class="org-tree-scroll">
         <ul class="org-tree">
           <li>
-            <div class="org-tree__node org-tree__node--root">{{ org_snapshot.company_name or 'Компания' }}</div>
+            <div class="org-tree__node org-tree__node--root" draggable="true" data-company="1"
+                 title="Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников компании">{{ org_snapshot.company_name or 'Компания' }}</div>
             {% if org_snapshot.division_tree %}
             <ul>
               {% for node in org_snapshot.division_tree %}{{ render_node(node) }}{% endfor %}
@@ -155,7 +157,7 @@
     // Плюс клик по аватару ВНУТРИ круга локации — снять именно эту
     // локацию с этого сотрудника (/detach_location), не трогая другие.
     (function () {
-      var dragged = null;   // { type: 'employee'|'division', id: '...' }
+      var dragged = null;   // { type: 'employee'|'division'|'company', id?: '...' }
 
       document.querySelectorAll('.ovp__avatar-mini[draggable="true"]').forEach(function (av) {
         av.addEventListener('dragstart', function () {
@@ -173,6 +175,17 @@
         head.addEventListener('dragend', function () { head.classList.remove('is-dragging'); });
       });
 
+      // CPO-фидбек: "добавить опцию прикрепления всей компании к
+      // локации" — тот же жест, что и у подразделения, только источник —
+      // корневой узел дерева (вся компания, не одно подразделение).
+      document.querySelectorAll('.org-tree__node--root[draggable="true"]').forEach(function (root) {
+        root.addEventListener('dragstart', function () {
+          dragged = { type: 'company' };
+          root.classList.add('is-dragging');
+        });
+        root.addEventListener('dragend', function () { root.classList.remove('is-dragging'); });
+      });
+
       document.querySelectorAll('.ovp__location-circle').forEach(function (zone) {
         zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('is-drop-target'); });
         zone.addEventListener('dragleave', function () { zone.classList.remove('is-drop-target'); });
@@ -181,8 +194,8 @@
           zone.classList.remove('is-drop-target');
           if (!dragged) return;
           var locationId = zone.dataset.locationId || '';
-          var url = dragged.type === 'division'
-            ? '/vhr/hrm/division_list/' + dragged.id + '/attach_all_to_location'
+          var url = dragged.type === 'division' ? '/vhr/hrm/division_list/' + dragged.id + '/attach_all_to_location'
+            : dragged.type === 'company' ? '/vhr/company/attach_all_to_location'
             : '/vhr/href/employee/' + dragged.id + '/assign_location';
           var body = new URLSearchParams();
           body.set('location_id', locationId);

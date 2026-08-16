@@ -53,6 +53,9 @@
       <div class="field"><label for="empSchedule">График</label>
         <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
       </div>
+      <div class="field"><label for="empPhone">Номер телефона <span style="color:var(--text-muted);font-weight:400;">(необязательно)</span></label>
+        <input type="tel" id="empPhone" name="phone" placeholder="+998 90 123 45 67" />
+      </div>
     </div>
     <p class="field__hint">Локацию (можно несколько) прикрепите после создания — перетащите сотрудника на неё в панели справа, или выберите в списке выше.</p>
     <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>

@@ -272,8 +272,9 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 }
 .org-tree__node--root {
   background: var(--primary); color: #fff; text-align: center; font-weight: 700; font-size: 13px;
-  padding: 10px 14px; width: auto; min-width: 140px;
+  padding: 10px 14px; width: auto; min-width: 140px; cursor: grab; user-select: none;
 }
+.org-tree__node--root.is-dragging { opacity: 0.5; }
 
 /* Карточка подразделения — по референсу реального Verifix (тёмная шапка +
    ряд аватаров сотрудников + подвал со счётчиком вложенных подразделений),

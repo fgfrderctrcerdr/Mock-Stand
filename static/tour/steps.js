@@ -118,6 +118,14 @@ var VERIFIX_TOUR_STEPS = [
     // и должна появиться пауза "Минимум выполнен" + кнопка "Далее".
     emptyWarning: 'Это отдельное действие от прикрепления одного сотрудника — попробуйте перетащить именно шапку карточки подразделения, целиком.',
     check: function () { return !!document.querySelector('[data-division-location-attach]'); },
+    // CPO-фидбек: "запрашивать подтверждение перехода, если не все
+    // сотрудники привязаны к локации" — маркер считается на сервере
+    // (см. has_unattached_employees в main.py base_ctx).
+    confirmBeforeAdvance: function () {
+      return document.querySelector('[data-has-unattached-employees]')
+        ? 'Не все сотрудники прикреплены хотя бы к одной локации — без этого для них не будет отчёта по часам. Всё равно продолжить?'
+        : null;
+    },
   },
   {
     id: 'invite',
@@ -126,6 +134,7 @@ var VERIFIX_TOUR_STEPS = [
     route: '/vhr/admin/users',
     inputSelector: 'input[name="phone"]',
     selector: '[data-tour="add"]',
+    noArrow: true,   // по запросу — здесь только подсветка (рамка+затемнение), без стрелки к кнопке
     emptyWarning: 'Без приглашения у сотрудника не будет доступа к приложению — значит, физически нечем будет сделать отметку.',
     check: function () { return document.querySelectorAll('[data-invite-active="1"]').length > 0; },
   },
