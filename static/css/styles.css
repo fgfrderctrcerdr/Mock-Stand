@@ -363,3 +363,15 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 }
 .ovp__overflow-cell:hover { background: #bbf7d0; }
 .ovp__overflow-cell:last-child { margin-bottom: 0; }
+
+/* Графики в панели (CPO-фидбек) — лаконично, простой список строк,
+   не карточки: это дополнительная сводка, не основной элемент панели. */
+.ovp__schedule-list { display: flex; flex-direction: column; gap: 4px; }
+.ovp__schedule-row {
+  display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px;
+  padding: 6px 10px; background: #fff; border: 1px solid var(--border); border-radius: 8px;
+}
+.ovp__schedule-name { font-weight: 500; }
+.ovp__schedule-detail { color: var(--text-muted); white-space: nowrap; }
+
+.ovp__overflow-cell-pos { font-weight: 400; opacity: 0.75; }

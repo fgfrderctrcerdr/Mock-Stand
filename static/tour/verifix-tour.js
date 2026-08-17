@@ -319,13 +319,6 @@
     wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
       Promise.resolve(step.check(state.opts)).then(function (ok) {
         if (ok) {
-          // CPO-фидбек: некоторые шаги (сейчас — attach_division) должны
-          // спросить подтверждение перед переходом дальше, если что-то
-          // важное не выполнено (не обязательно, просто предупреждение).
-          if (step.confirmBeforeAdvance) {
-            var msg = step.confirmBeforeAdvance();
-            if (msg && !window.confirm(msg)) return;
-          }
           markDone(step.id);
         } else {
           state.satisfied[step.id] = false;

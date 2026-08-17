@@ -185,6 +185,16 @@ def build_org_snapshot(db, org):
     divisions = db.query(Division).filter_by(organization_id=org.id).all()
     employees = db.query(Employee).filter_by(organization_id=org.id).all()
     locations = db.query(Location).filter_by(organization_id=org.id).all()
+    # CPO-фидбек: "показать должность рядом с ФИО сотрудника" — решил как
+    # PM: не отдельная секция панели (для этого уже есть колонка "Должность"
+    # в самой таблице сотрудников), а просто в подсказке (title) на аватаре
+    # в дереве/локациях — не захламляет компактный вид панели.
+    positions = db.query(Position).filter_by(organization_id=org.id).all()
+    position_by_id = {p.id: p.name for p in positions}
+    # CPO-фидбек: "добавить отображение графиков в правой части экрана" —
+    # намеренно лаконично (одна строка на график, не карточка, как у
+    # подразделений) — это дополнительная сводка, не основной элемент панели.
+    schedules = db.query(Schedule).filter_by(organization_id=org.id).all()
 
     emp_by_division = defaultdict(list)
     emp_by_location = defaultdict(list)
@@ -224,6 +234,8 @@ def build_org_snapshot(db, org):
         "division_tree": division_tree,
         "company_name": org.company_name,
         "loc_rows": loc_rows,
+        "schedules": schedules,
+        "position_by_id": position_by_id,
         "has_any": bool(divisions or employees or locations),
     }
 
@@ -277,6 +289,18 @@ def employees_word(n: int) -> str:
     return "сотрудников"
 
 
+WEEKDAY_SHORT = {1: "Пн", 2: "Вт", 3: "Ср", 4: "Чт", 5: "Пт", 6: "Сб", 7: "Вс"}
+
+
+def schedule_summary(s) -> str:
+    """Компактная строка для панели (CPO: "лаконично") — не карточка,
+    просто одна строка на график."""
+    if s.kind == "hourly":
+        return f"почасовой, норма {s.norm_hours or 0:g} ч"
+    days = "".join(WEEKDAY_SHORT.get(d, "") for d in (s.week_days or []))
+    return f"{s.start_time or '—'}–{s.end_time or '—'}, {days or '—'}"
+
+
 def base_ctx(request: Request, page_title: str):
     current_section = None
     for section in MENU:
@@ -319,6 +343,7 @@ def base_ctx(request: Request, page_title: str):
         "display_name": display_name,
         "to_local": to_local,
         "employees_word": employees_word,
+        "schedule_summary": schedule_summary,
         "individual_attach_done": individual_attach_done,
         "division_attach_done": division_attach_done,
         "has_unattached_employees": has_unattached_employees,
