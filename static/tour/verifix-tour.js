@@ -48,15 +48,26 @@
   }
 
   function markDone(id) {
-    if (state.done[id]) return;
-    state.done[id] = true;
-    saveProgress();
-    // Если только что выполненный шаг был активным — двигаем указатель на
-    // следующий невыполненный. Раньше это делал advance() рядом с ручной
-    // кнопкой «Готово, дальше»; когда её убрали (см. фикс обязательности
-    // шагов), про этот переход забыли — activeId зависал на уже
-    // выполненном шаге, и он подсвечивался заново при каждом render()
-    // (это и была причина «после первого раза снова затемняет поле»).
+    // БАГ (репродуцирован по описанию Vladimir — "бесконечно показывает
+    // прикрепление подразделения"): если state.activeId ЗАНОВО указывает
+    // на уже пройденный шаг (например, через клик по строке в развёрнутой
+    // панели-чеклисте — goStep() не проверяет, пройден ли шаг), а check()
+    // этого шага снова истинен (для attach_employee/attach_division это
+    // маркер по факту события — он НЕ гаснет обратно), markDone()
+    // срабатывал на "уже пройден" и завершался РАНЬШЕ, чем успевал
+    // продвинуть activeId на следующий шаг — activeId замерзал на этом
+    // шаге НАВСЕГДА (до перезагрузки страницы), и каждый следующий
+    // render() повторял тот же безрезультатный цикл.
+    //
+    // Fix: писать в localStorage — только если раньше не было пройдено
+    // (не плодим лишние записи), но ПРОДВИГАТЬ activeId — всегда, если
+    // именно ОН сейчас активен, независимо от того, было ли это уже
+    // пройдено раньше.
+    var alreadyDone = !!state.done[id];
+    if (!alreadyDone) {
+      state.done[id] = true;
+      saveProgress();
+    }
     if (state.activeId === id) {
       var next = firstUndone();
       state.activeId = next ? next.id : null;
@@ -67,8 +78,8 @@
       // навигации (перезагрузке страницы) весь state.js создаётся заново
       // и сам собой сбрасывается в false, что и даёт нужное различие.
       state.justAdvanced = true;
+      render();
     }
-    render();
   }
 
   // --- Проверка выполнения шага (через step.check: () => bool|Promise<bool>) ---
@@ -319,6 +330,14 @@
     wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
       Promise.resolve(step.check(state.opts)).then(function (ok) {
         if (ok) {
+          // Мягкое предупреждение перед переходом (не хард-блок) — по
+          // уточнению Vladimir: если что-то важное не выполнено, спросить
+          // явно с кастомными кнопками "Да/Нет" (нативный confirm() не
+          // даёт задать текст кнопок — только браузерные ОК/Отмена).
+          if (step.confirmBeforeAdvance) {
+            var msg = step.confirmBeforeAdvance();
+            if (msg) { showConfirmDialog(msg, function () { markDone(step.id); }); return; }
+          }
           markDone(step.id);
         } else {
           state.satisfied[step.id] = false;
@@ -328,6 +347,26 @@
         }
       });
     });
+  }
+
+  // Кастомный диалог подтверждения с кнопками "Да/Нет" — по запросу
+  // Vladimir (конкретная формулировка + конкретные подписи кнопок,
+  // недоступные через нативный window.confirm()). onYes вызывается
+  // только по явному "Да"; "Нет" просто закрывает диалог, ничего не
+  // продвигая — пользователь остаётся донастраивать локации.
+  function showConfirmDialog(message, onYes) {
+    var overlay = el('div', 'vtour-confirm-overlay');
+    var box = el('div', 'vtour-confirm-box',
+      '<p class="vtour-confirm-text"></p>' +
+      '<div class="vtour-confirm-actions">' +
+      '<button class="vtour-btn vtour-btn--ghost vtour-confirm-no">Нет</button>' +
+      '<button class="vtour-btn vtour-confirm-yes">Да</button>' +
+      '</div>');
+    box.querySelector('.vtour-confirm-text').textContent = message;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    box.querySelector('.vtour-confirm-yes').addEventListener('click', function () { overlay.remove(); onYes(); });
+    box.querySelector('.vtour-confirm-no').addEventListener('click', function () { overlay.remove(); });
   }
 
   // Ведёт через реальную верхнюю навигацию: находит пункт меню с нужным
