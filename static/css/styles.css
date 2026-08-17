@@ -384,3 +384,23 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
   background: #eef2ff; color: #4338ca; cursor: pointer; white-space: nowrap;
 }
 .ovp__division-tag:hover { background: #e0e7ff; }
+
+/* Полная ширина, когда правая панель скрыта (Посещения/Отчёт — по
+   запросу Vladimir, эти страницы показывают реальные списки/отчёты
+   Verifix и не нуждаются в панели оргструктуры). */
+.content-full--wide { flex: 1 1 100%; }
+
+/* Страницы без панели оргструктуры (Отметки/Отчёт) — используют всю
+   ширину экрана, не ограничены как обычные страницы (max-width:640px). */
+.page--full { max-width: none; }
+
+/* Календарная сетка отчёта по посещениям (по референсу реального
+   Verifix) — компактные колонки-дни, "В" (выходной по графику) —
+   голубой фон, как в оригинале; отработанные часы — просто текст. */
+.timesheet-scroll { overflow-x: auto; }
+.timesheet-table { min-width: 900px; }
+.timesheet-fio-col { min-width: 160px; text-align: left; }
+.timesheet-day-head { width: 34px; text-align: center; font-size: 11px; }
+.timesheet-cell { text-align: center; font-size: 12px; padding: 6px 4px; }
+.timesheet-cell--off { background: #e0f2fe; color: #0369a1; font-weight: 600; }
+.timesheet-total { text-align: center; background: var(--surface-2); }

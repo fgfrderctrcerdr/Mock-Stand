@@ -12,6 +12,7 @@
   {% if division_attach_done %}<div data-division-location-attach="1" style="display:none"></div>{% endif %}
   {% if has_unattached_employees %}<div data-has-unattached-employees="1" style="display:none"></div>{% endif %}
   {% if has_uninvited_employees %}<div data-has-uninvited-employees="1" style="display:none"></div>{% endif %}
+  {% if has_any_invited %}<div data-has-any-invited="1" style="display:none"></div>{% endif %}
   <header class="topbar">
     <div class="topbar__brand">
       <a href="/" class="topbar__brand-link">
@@ -46,7 +47,7 @@
   </header>
 
   <div class="workspace">
-    <main class="content-full">
+    <main class="content-full {{ 'content-full--wide' if hide_org_panel else '' }}">
       <div id="tourPanelSlot"></div>
       {% if error %}
       <div class="page-error-banner">{{ error }}</div>
@@ -54,6 +55,7 @@
       {% block content %}{% endblock %}
     </main>
 
+    {% if not hide_org_panel %}
     <aside class="org-visual-panel">
       <div class="ovp__title">Оргструктура</div>
 
@@ -165,6 +167,7 @@
         {% endfor %}
       </div>
     </aside>
+    {% endif %}
   </div>
 
   <script>

@@ -355,6 +355,16 @@ def base_ctx(request: Request, page_title: str):
         .first()
         is not None
     )
+    # По запросу: подсказку на шаге приглашения показываем только ДО
+    # первого успешного приглашения — дальше не навязываем на каждого
+    # следующего сотрудника.
+    has_any_invited = (
+        db.query(Employee)
+        .filter_by(organization_id=org_id)
+        .filter(Employee.invite_status != "none")
+        .first()
+        is not None
+    )
 
     return {
         "request": request,
@@ -374,6 +384,7 @@ def base_ctx(request: Request, page_title: str):
         "division_attach_done": division_attach_done,
         "has_unattached_employees": has_unattached_employees,
         "has_uninvited_employees": has_uninvited_employees,
+        "has_any_invited": has_any_invited,
     }
 
 
@@ -1079,64 +1090,25 @@ def users_simulate_activate(request: Request, employee_id: str):
 def attendance_mark_page(request: Request):
     db = request.state.db
     org = request.state.org
-    active_employees = db.query(Employee).filter_by(organization_id=org.id, invite_status="active").all()
     all_employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    locations = db.query(Location).filter_by(organization_id=org.id).all()
     events = (
         db.query(AttendanceEvent)
         .filter_by(organization_id=org.id)
         .order_by(AttendanceEvent.marked_at.desc())
-        .limit(20)
+        .limit(200)
         .all()
     )
     log_event(request, "page_view")
     ctx = base_ctx(request, "Отметки")
-    # QA-находка попутно: раньше в таблице "последние отметки" имя искалось
-    # только среди АКТИВНЫХ сотрудников (employees) — если сотрудник успел
-    # деактивироваться, но не удалиться, его старые отметки показывали "—"
-    # хотя сотрудник по факту существует. Для списка/выбора — активные;
-    # для отображения имени в истории — все.
-    ctx.update(employees=active_employees, all_employees=all_employees, events=events, has_any_employee=bool(all_employees))
+    # По запросу Vladimir (со скринами реального Verifix): убрана форма
+    # ручного создания отметки — в реальном Verifix эта страница ЧИСТО
+    # просмотровая (отметки приходят от устройств/приложения, не через
+    # ручную форму в админке). Показываем РЕАЛЬНЫЕ данные из БД (могут
+    # быть пустыми) — никаких выдуманных строк. Панель оргструктуры
+    # справа скрыта — вкладка должна быть на весь экран, как в референсе.
+    ctx.update(all_employees=all_employees, locations=locations, events=events, hide_org_panel=True)
     return templates.TemplateResponse(request, "attendance_mark.html", ctx)
-
-
-@app.post("/vhr/htt/attendance_mark/create")
-def attendance_mark_create(request: Request, employee_id: str = Form(""), kind: str = Form("in"), hours_ago: str = Form("0")):
-    # QA M2: раньше строило AttendanceEvent с сырым employee_id независимо
-    # от того, найден ли сотрудник и активен ли он, и не ограничивало kind.
-    if kind not in ("in", "out"):
-        return redirect_with_error("/vhr/htt/attendance_mark", "Некорректный тип отметки.")
-    db = request.state.db
-    org = request.state.org
-    emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id, invite_status="active").first()
-    if not emp:
-        return redirect_with_error("/vhr/htt/attendance_mark", "Сотрудник не найден или ещё не активирован — выберите из списка.")
-
-    # QA M3: раньше приход и уход всегда писались "прямо сейчас" — при
-    # демонстрации кликаешь оба подряд, разница уходит в округление до 0.00ч,
-    # и кульминационный отчёт показывает 0 часов. Позволяем "задним числом"
-    # отметить приход на N часов назад, чтобы уход "сейчас" давал реалистичную
-    # разницу.
-    try:
-        h = max(0.0, min(48.0, float(hours_ago)))
-    except ValueError:
-        h = 0.0
-    marked_at = datetime.now(timezone.utc) - timedelta(hours=h)
-
-    ev = AttendanceEvent(
-        organization_id=org.id,
-        employee_id=employee_id,
-        # Многие-ко-многим теперь (см. Employee.locations) — для конкретной
-        # ОТМЕТКИ фиксируем первую из его локаций (мок не даёт выбрать, у
-        # какой именно из нескольких точек отметился — упрощение для этого
-        # прохода, реальный выбор локации при отметке не в фокусе запроса).
-        location_id=emp.locations[0].id if emp.locations else None,
-        kind=kind,
-        marked_at=marked_at,
-    )
-    db.add(ev)
-    db.commit()
-    log_event(request, "attendance_marked", {"employee_id": employee_id, "kind": kind, "hours_ago": h})
-    return RedirectResponse(url="/vhr/htt/attendance_mark", status_code=303)
 
 
 # ============================================================
@@ -1148,6 +1120,8 @@ def timesheet_report(request: Request):
     db = request.state.db
     org = request.state.org
     employees = db.query(Employee).filter_by(organization_id=org.id).all()
+    divisions = db.query(Division).filter_by(organization_id=org.id).all()
+    schedules = db.query(Schedule).filter_by(organization_id=org.id).all()
     events = (
         db.query(AttendanceEvent)
         .filter_by(organization_id=org.id)
@@ -1155,40 +1129,56 @@ def timesheet_report(request: Request):
         .all()
     )
 
-    by_employee = defaultdict(list)
-    for ev in events:
-        by_employee[ev.employee_id].append(ev)
+    schedule_by_id = {s.id: s for s in schedules}
 
-    rows = []
-    for emp_id, evs in by_employee.items():
-        # Простое попарное сведение in→out по порядку — для мока достаточно,
-        # реальный расчёт с ночными сменами/пропусками — задача hpr, не мока.
+    # По референсу реального Verifix — календарная сетка по дням месяца,
+    # не список пар приход/уход. Период: с 1 числа текущего месяца по
+    # сегодня (то же самое, что показано на скрине "01 авг - 17 авг").
+    today_local = to_local(datetime.now(timezone.utc)).date()
+    period_start = today_local.replace(day=1)
+    period_days = [period_start + timedelta(days=i) for i in range((today_local - period_start).days + 1)]
+
+    # Группируем реальные отметки по (сотрудник, локальная календарная дата).
+    events_by_emp_day = defaultdict(list)
+    for ev in events:
+        d = to_local(ev.marked_at).date()
+        events_by_emp_day[(ev.employee_id, d)].append(ev)
+
+    def hours_for_day(evs):
         pending_in = None
-        for ev in evs:
+        total = 0.0
+        for ev in sorted(evs, key=lambda e: e.marked_at):
             if ev.kind == "in":
                 pending_in = ev
             elif ev.kind == "out" and pending_in:
-                hours = round((ev.marked_at - pending_in.marked_at).total_seconds() / 3600, 2)
-                rows.append({
-                    "id": pending_in.id + "_" + ev.id,
-                    "employee_name": name_by_id(employees, emp_id),
-                    "in_at": pending_in.marked_at,
-                    "out_at": ev.marked_at,
-                    "hours": hours,
-                })
+                total += (ev.marked_at - pending_in.marked_at).total_seconds() / 3600
                 pending_in = None
-        if pending_in:
-            rows.append({
-                "id": pending_in.id,
-                "employee_name": name_by_id(employees, emp_id),
-                "in_at": pending_in.marked_at,
-                "out_at": None,
-                "hours": None,
-            })
+        return round(total, 2) if total else None
+
+    rows = []
+    for emp in employees:
+        sched = schedule_by_id.get(emp.schedule_id)
+        week_days = set(sched.week_days or []) if sched else set()
+        day_cells = []
+        total_hours = 0.0
+        for d in period_days:
+            # Schedule.week_days: 1=Пн..7=Вс — ровно как date.isoweekday(), без конвертации.
+            is_workday = d.isoweekday() in week_days
+            hours = hours_for_day(events_by_emp_day.get((emp.id, d), []))
+            if hours:
+                total_hours += hours
+            day_cells.append({"day": d.day, "is_workday": is_workday, "hours": hours})
+        rows.append({
+            "employee": emp,
+            "division_name": name_by_id(divisions, emp.division_id),
+            "days": day_cells,
+            "total_hours": round(total_hours, 2) if total_hours else 0,
+        })
 
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Отчёт по часам")
-    ctx.update(rows=rows)
+    ctx = base_ctx(request, "Отчёт по посещениям")
+    # Тоже реальные данные, тоже во весь экран (см. attendance_mark_page).
+    ctx.update(rows=rows, period_days=period_days, period_start=period_start, period_end=today_local, hide_org_panel=True)
     return templates.TemplateResponse(request, "timesheet_report.html", ctx)
 
 

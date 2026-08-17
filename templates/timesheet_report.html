@@ -1,23 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page">
-  <h1 class="page__title">Отчёт по отработанным часам</h1>
-  <p class="page__subtitle">Считается из пар отметок «приход → уход». Здесь виден результат: сколько часов реально отработал каждый сотрудник.</p>
+<div class="page page--full">
+  <h1 class="page__title">Отчёт по посещениям</h1>
+  <p class="page__subtitle">Период: {{ period_start.strftime('%d.%m.%Y') }} – {{ period_end.strftime('%d.%m.%Y') }}. Показаны только реальные отметки — если их ещё не было, ячейки пустые, это нормально.</p>
 
-  <table class="datatable">
-    <thead><tr><th>Сотрудник</th><th>Приход</th><th>Уход</th><th>Часов</th></tr></thead>
-    <tbody>
-      {% for row in rows %}
-      <tr data-row-id="{{ row.id }}">
-        <td>{{ row.employee_name }}</td>
-        <td>{{ to_local(row.in_at).strftime('%d.%m.%Y %H:%M') if row.in_at else '—' }}</td>
-        <td>{{ to_local(row.out_at).strftime('%d.%m.%Y %H:%M') if row.out_at else 'ещё не отметился' }}</td>
-        <td>{{ row.hours if row.hours is not none else '—' }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4" class="datatable__empty">Пока нет данных — сначала отметьте приход/уход в разделе «Отметки»</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="timesheet-scroll">
+    <table class="datatable timesheet-table">
+      <thead>
+        <tr>
+          <th class="timesheet-fio-col">ФИО</th>
+          <th>Подразделение</th>
+          {% for d in period_days %}
+          <th class="timesheet-day-head">{{ '%02d' % d.day }}</th>
+          {% endfor %}
+          <th>Итого</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr data-row-id="{{ row.employee.id }}">
+          <td class="timesheet-fio-col">{{ row.employee.full_name }}</td>
+          <td>{{ row.division_name }}</td>
+          {% for cell in row.days %}
+          <td class="timesheet-cell {{ 'timesheet-cell--off' if not cell.is_workday else '' }}">
+            {% if not cell.is_workday %}В{% elif cell.hours %}{{ cell.hours }}ч{% else %}—{% endif %}
+          </td>
+          {% endfor %}
+          <td class="timesheet-total"><b>{{ row.total_hours }}ч</b></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="{{ 3 + period_days|length }}" class="datatable__empty">Сотрудников пока нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

@@ -1,63 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page">
-  <h1 class="page__title">Отметки (симуляция)</h1>
-  <p class="page__subtitle">В реальном Verifix сотрудник отмечается в мобильном приложении по геолокации или QR-коду.
-    Здесь эта отметка эмулируется вручную — так сотрудник фиксирует приход и уход.</p>
+<div class="page page--full">
+  <h1 class="page__title">Отметки</h1>
+  <p class="page__subtitle">Список отметок прихода/ухода — как в реальном Verifix, это просмотровая страница: отметки приходят от устройств/приложения, здесь их вручную не создают.</p>
 
-  <form method="post" action="/vhr/htt/attendance_mark/create" class="entity-form">
-    <div class="field-row">
-      <div class="field">
-        <label for="markEmployee">Сотрудник</label>
-        <select id="markEmployee" name="employee_id" required>
-          <option value="">— выберите —</option>
-          {% for e in employees %}<option value="{{ e.id }}">{{ e.full_name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label for="markKind">Тип отметки</label>
-        <select id="markKind" name="kind">
-          <option value="in">Приход</option>
-          <option value="out">Уход</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="markHoursAgo">Когда</label>
-        <select id="markHoursAgo" name="hours_ago">
-          <option value="0">Сейчас</option>
-          <option value="4">4 часа назад</option>
-          <option value="8">8 часов назад</option>
-          <option value="12">12 часов назад</option>
-        </select>
-      </div>
-    </div>
-    <p class="field__hint">Для демонстрации отчёта: отметьте приход «8 часов назад», а уход — «Сейчас», чтобы получить реалистичную разницу.</p>
-    {% if not employees %}
-    <p class="field__hint">
-      {% if has_any_employee %}
-        Пока нет активированных сотрудников — сначала пригласите и активируйте хотя бы одного
-        в разделе <a href="/vhr/admin/users">Настройки → Пользователи</a>.
-      {% else %}
-        Сначала добавьте сотрудника в разделе «Кадры → Сотрудники», затем пригласите его
-        в <a href="/vhr/admin/users">Настройки → Пользователи</a>.
-      {% endif %}
-    </p>
-    {% endif %}
-    <button class="btn btn--primary" type="submit" data-tour="add" {{ 'disabled' if not employees else '' }}>Отметиться</button>
-  </form>
-
-  <h2 class="page__section-title">Последние отметки</h2>
   <table class="datatable">
-    <thead><tr><th>Сотрудник</th><th>Тип</th><th>Время</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Физическое лицо</th>
+        <th>Локация</th>
+        <th>Тип отметки</th>
+        <th>Дата создания</th>
+      </tr>
+    </thead>
     <tbody>
       {% for ev in events %}
       <tr data-row-id="{{ ev.id }}">
         <td>{{ name_by_id(all_employees, ev.employee_id) }}</td>
+        <td>{{ name_by_id(locations, ev.location_id) if locations else '—' }}</td>
         <td>{{ 'Приход' if ev.kind == 'in' else 'Уход' }}</td>
         <td>{{ to_local(ev.marked_at).strftime('%d.%m.%Y %H:%M') }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="3" class="datatable__empty">Отметок пока нет</td></tr>
+      <tr><td colspan="4" class="datatable__empty">Отметок пока нет — они появятся здесь, когда сотрудники начнут отмечаться в приложении Verifix ID.</td></tr>
       {% endfor %}
     </tbody>
   </table>
