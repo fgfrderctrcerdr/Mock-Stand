@@ -39,20 +39,6 @@
     </tbody>
   </table>
 
-  <form method="post" action="/vhr/href/employee/create" class="entity-form">
-    <div class="field"><label for="empFullName">ФИО</label><input type="text" id="empFullName" name="full_name" required placeholder="Иванов Иван" /></div>
-    <div class="field-row">
-      <div class="field"><label for="empDivision">Подразделение</label>
-        <select id="empDivision" name="division_id" required><option value="">—</option>{% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
-      </div>
-      <div class="field"><label for="empPosition">Должность</label>
-        <select id="empPosition" name="position_id" required><option value="">—</option>{% for p in positions %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label for="empSchedule">График</label>
-        <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
-      </div>
   <form method="post" action="/vhr/href/employee/create" class="entity-form" id="employeeCreateForm">
     <div class="field"><label for="empFullName">ФИО</label><input type="text" id="empFullName" name="full_name" required placeholder="Иванов Иван" /></div>
     <div class="field-row">
