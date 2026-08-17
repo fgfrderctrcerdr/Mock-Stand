@@ -310,7 +310,7 @@
 
     var wrap = el('div', 'vtour-next-inline');
     wrap.innerHTML =
-      '<span class="vtour-next-inline__hint">Минимум выполнен — можно добавить ещё</span>' +
+      '<span class="vtour-next-inline__hint">' + esc(step.doneHint || 'Минимум выполнен — можно добавить ещё') + '</span>' +
       '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>' +
       '<div class="vtour-inline-warning" hidden></div>';
     container.parentNode.insertBefore(wrap, container.nextSibling);

@@ -137,8 +137,13 @@ var VERIFIX_TOUR_STEPS = [
     inputSelector: 'input[name="phone"]',
     selector: '[data-tour="add"]',
     noArrow: true,   // по запросу — здесь только подсветка (рамка+затемнение), без стрелки к кнопке
-    emptyWarning: 'Без приглашения у сотрудника не будет доступа к приложению — значит, физически нечем будет сделать отметку.',
-    check: function () { return document.querySelectorAll('[data-invite-active="1"]').length > 0; },
+    // Уточнение: раньше хватало ОДНОГО приглашённого — теперь требуются
+    // ВСЕ сотрудники компании (маркер has_uninvited_employees в main.py).
+    // autoAdvance — как только приглашены все, сразу ведём дальше (гид
+    // на Посещения → Отметки), без паузы "Далее" здесь.
+    autoAdvance: true,
+    emptyWarning: 'Не все сотрудники приглашены — без приглашения у них не будет доступа к приложению, значит, физически нечем будет сделать отметку.',
+    check: function () { return !document.querySelector('[data-has-uninvited-employees]'); },
   },
   {
     id: 'attendance',
@@ -150,6 +155,7 @@ var VERIFIX_TOUR_STEPS = [
     // check() всегда true — как только пользователь на нужной странице
     // (route проверяется раньше в движке), считаем выполненным.
     check: function () { return true; },
+    doneHint: 'Здесь видны отметки прихода/ухода сотрудников — список может быть пустым, если никто ещё не отмечался. Когда посмотрели — жмите «Далее».',
   },
   {
     id: 'report',
@@ -157,6 +163,7 @@ var VERIFIX_TOUR_STEPS = [
     why: 'Отчёт по отработанным часам — в формате как в реальном Verifix. Если отметок ещё не было, отчёт будет пустым, это тоже нормально.',
     route: '/vhr/htt/timesheet_report',
     check: function () { return true; },
+    doneHint: 'Отчёт по отработанным часам — как в реальном Verifix. Пусто, если ещё не было отметок — это нормально.',
   },
 ];
 

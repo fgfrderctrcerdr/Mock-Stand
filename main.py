@@ -219,8 +219,24 @@ def build_org_snapshot(db, org):
 
     division_tree = _attach_counts(_build_division_tree(divisions, emp_by_division))
 
+    # Доработка (запрос Vladimir): показать в самой локации, какое
+    # подразделение к ней прикреплено (постоянное правило, не отдельные
+    # сотрудники) — читаем division_locations, а не выводим из фактических
+    # привязок employee_locations (там могло быть добавлено и вручную,
+    # по одному человеку, без правила на уровне подразделения).
+    division_name_by_id = {d.id: d.name for d in divisions}
+    divisions_by_location = defaultdict(list)
+    for row in db.execute(division_locations.select()).all():
+        dname = division_name_by_id.get(row.division_id)
+        if dname:
+            divisions_by_location[row.location_id].append({"id": row.division_id, "name": dname})
+
     loc_rows = [
-        {"location": l, "employees": emp_by_location.get(l.id, [])}
+        {
+            "location": l,
+            "employees": emp_by_location.get(l.id, []),
+            "attached_divisions": divisions_by_location.get(l.id, []),
+        }
         for l in locations
     ]
     # QA-фидбек Vladimir: раньше был отдельный плоский пул "не прикреплены" —
@@ -330,6 +346,16 @@ def base_ctx(request: Request, page_title: str):
         is not None
     )
 
+    # Уточнение Vladimir: шаг приглашения должен требовать ВСЕХ сотрудников
+    # приглашёнными/активными, не "хотя бы одного" (как было раньше).
+    has_uninvited_employees = (
+        db.query(Employee)
+        .filter_by(organization_id=org_id)
+        .filter(Employee.invite_status != "active")
+        .first()
+        is not None
+    )
+
     return {
         "request": request,
         "page_title": page_title,
@@ -347,6 +373,7 @@ def base_ctx(request: Request, page_title: str):
         "individual_attach_done": individual_attach_done,
         "division_attach_done": division_attach_done,
         "has_unattached_employees": has_unattached_employees,
+        "has_uninvited_employees": has_uninvited_employees,
     }
 
 
@@ -781,10 +808,14 @@ def employee_create(
     # мультиселект в списке сотрудников), не форма создания.
     if not full_name.strip():
         return redirect_with_error("/vhr/href/employee", "ФИО сотрудника не может быть пустым.")
-    if not (division_id and position_id and schedule_id):
+    # Уточнение Vladimir (health check при создании): телефон тоже стал
+    # обязательным наряду с подразделением/должностью/графиком — раньше
+    # был необязательным, теперь требуется сразу, иначе позже пришлось бы
+    # отдельно дозаполнять на странице "Пользователи" перед приглашением.
+    if not (division_id and position_id and schedule_id and phone.strip()):
         return redirect_with_error(
             "/vhr/href/employee",
-            "Заполните подразделение, должность и график. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа."
+            "Заполните подразделение, должность, график и телефон. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа."
         )
     db = request.state.db
     org = request.state.org
@@ -928,6 +959,34 @@ def division_attach_all_to_location(request: Request, division_id: str, location
 
     db.commit()
     log_event(request, "division_location_attach", {"division_id": division_id, "location_id": location_id})
+    return {"ok": True, "count": len(employees)}
+
+
+@app.post("/vhr/hrm/division_list/{division_id}/detach_location")
+def division_detach_location(request: Request, division_id: str, location_id: str = Form("")):
+    """Открепление подразделения от локации (по запросу Vladimir — "на
+    случай, если что-то прикрепили ошибочно"). Симметрично attach:
+    убирает ПРАВИЛО из division_locations И каскадом снимает эту
+    локацию со ВСЕХ прямых сотрудников этого подразделения (не только
+    у новых — у уже существующих тоже, иначе правило исчезло бы, а
+    фактические привязки остались бы висеть)."""
+    db = request.state.db
+    org = request.state.org
+    loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
+    if not loc:
+        return {"ok": False, "error": "Локация не найдена"}
+
+    db.execute(
+        division_locations.delete().where(
+            division_locations.c.division_id == division_id,
+            division_locations.c.location_id == location_id,
+        )
+    )
+    employees = db.query(Employee).filter_by(organization_id=org.id, division_id=division_id).all()
+    for emp in employees:
+        if loc in emp.locations:
+            emp.locations.remove(loc)
+    db.commit()
     return {"ok": True, "count": len(employees)}
 
 

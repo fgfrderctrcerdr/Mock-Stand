@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page">
   <h1 class="page__title">Сотрудники</h1>
-  <p class="page__subtitle">Свяжите сотрудника с подразделением, должностью и графиком — без этого он не сможет отметить приход.</p>
+  <p class="page__subtitle">Свяжите сотрудника с подразделением, должностью, графиком и телефоном — без этого он не сможет отметить приход и получить приглашение.</p>
 
   <table class="datatable">
     <thead><tr><th>ФИО</th><th>Подразделение</th><th>Должность</th><th>График</th><th>Локация</th><th></th></tr></thead>
@@ -53,14 +53,51 @@
       <div class="field"><label for="empSchedule">График</label>
         <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label for="empPhone">Номер телефона <span style="color:var(--text-muted);font-weight:400;">(необязательно)</span></label>
-        <input type="tel" id="empPhone" name="phone" placeholder="+998 90 123 45 67" />
+  <form method="post" action="/vhr/href/employee/create" class="entity-form" id="employeeCreateForm">
+    <div class="field"><label for="empFullName">ФИО</label><input type="text" id="empFullName" name="full_name" required placeholder="Иванов Иван" /></div>
+    <div class="field-row">
+      <div class="field"><label for="empDivision">Подразделение</label>
+        <select id="empDivision" name="division_id" required><option value="">—</option>{% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label for="empPosition">Должность</label>
+        <select id="empPosition" name="position_id" required><option value="">—</option>{% for p in positions %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="empSchedule">График</label>
+        <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label for="empPhone">Номер телефона</label>
+        <input type="tel" id="empPhone" name="phone" required placeholder="+998 90 123 45 67" />
       </div>
     </div>
     <p class="field__hint">Локацию (можно несколько) прикрепите после создания — перетащите сотрудника на неё в панели справа, или выберите в списке выше.</p>
-    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить сотрудника</button>
+    <button class="btn btn--primary" type="submit" data-tour="add" id="employeeSubmitBtn">+ Добавить сотрудника</button>
   </form>
 </div>
+
+<script>
+// Health check при создании сотрудника (по запросу Vladimir): подразделение,
+// должность, график и телефон теперь ВСЕ обязательны — кнопка сохранения
+// визуально некликабельна, пока не заполнены все четыре (не просто HTML5
+// required, который проверяет только в момент сабмита, а синхронно на ввод).
+(function () {
+  var form = document.getElementById('employeeCreateForm');
+  var btn = document.getElementById('employeeSubmitBtn');
+  if (!form || !btn) return;
+  var fields = [
+    document.getElementById('empDivision'),
+    document.getElementById('empPosition'),
+    document.getElementById('empSchedule'),
+    document.getElementById('empPhone'),
+  ];
+  function sync() {
+    btn.disabled = fields.some(function (f) { return !f || !f.value.trim(); });
+  }
+  fields.forEach(function (f) { if (f) { f.addEventListener('input', sync); f.addEventListener('change', sync); } });
+  sync();
+})();
+</script>
 
 <script>
 // QA M5 + запрос Vladimir (многие-ко-многим): раньше здесь был нативный

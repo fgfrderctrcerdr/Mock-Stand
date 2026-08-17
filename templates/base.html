@@ -11,6 +11,7 @@
   {% if individual_attach_done %}<div data-individual-location-attach="1" style="display:none"></div>{% endif %}
   {% if division_attach_done %}<div data-division-location-attach="1" style="display:none"></div>{% endif %}
   {% if has_unattached_employees %}<div data-has-unattached-employees="1" style="display:none"></div>{% endif %}
+  {% if has_uninvited_employees %}<div data-has-uninvited-employees="1" style="display:none"></div>{% endif %}
   <header class="topbar">
     <div class="topbar__brand">
       <a href="/" class="topbar__brand-link">
@@ -152,6 +153,14 @@
           </div>
           {% endif %}
           <div class="ovp__location-name">{{ row.location.name }}</div>
+          {% if row.attached_divisions %}
+          <div class="ovp__location-divisions">
+            {% for d in row.attached_divisions %}
+            <button type="button" class="ovp__division-tag" data-division-id="{{ d.id }}" data-location-id="{{ row.location.id }}"
+                    title="Открепить «{{ d.name }}» от этой локации (снимет ВСЕХ сотрудников подразделения)">{{ d.name }} ×</button>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -239,6 +248,22 @@
         btn.addEventListener('click', function () {
           var list = document.getElementById('loc-overflow-' + btn.dataset.locationToggle);
           if (list) list.hidden = !list.hidden;
+        });
+      });
+
+      // Открепление ВСЕГО подразделения от локации (см. запрос Vladimir —
+      // "на случай, если что-то прикрепили ошибочно"). Каскадом снимает
+      // локацию со всех сотрудников этого подразделения на сервере.
+      document.querySelectorAll('.ovp__division-tag').forEach(function (tag) {
+        tag.addEventListener('click', function () {
+          var name = tag.textContent.replace(/\s*×\s*$/, '');
+          if (!window.confirm('Открепить «' + name + '» от этой локации? Все сотрудники подразделения будут откреплены от неё.')) return;
+          var body = new URLSearchParams();
+          body.set('location_id', tag.dataset.locationId);
+          fetch('/vhr/hrm/division_list/' + tag.dataset.divisionId + '/detach_location', { method: 'POST', body: body })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось открепить подразделение'); })
+            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
         });
       });
     })();

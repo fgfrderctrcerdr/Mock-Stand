@@ -375,3 +375,12 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 .ovp__schedule-detail { color: var(--text-muted); white-space: nowrap; }
 
 .ovp__overflow-cell-pos { font-weight: 400; opacity: 0.75; }
+
+/* Тег подразделения, прикреплённого к локации (см. доработку Vladimir) —
+   кликабельный, открепляет ВСЁ подразделение от этой локации. */
+.ovp__location-divisions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; max-width: 140px; }
+.ovp__division-tag {
+  font-size: 10.5px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border);
+  background: #eef2ff; color: #4338ca; cursor: pointer; white-space: nowrap;
+}
+.ovp__division-tag:hover { background: #e0e7ff; }
