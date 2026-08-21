@@ -1531,15 +1531,26 @@ def division_attach_all_to_location(request: Request, division_id: str, location
     division_locations (см. models.py): дальше employee_create() сам
     прикрепит эту локацию любому НОВОМУ сотруднику, заведённому в это
     подразделение, без повторного перетаскивания (фидбек: "новый
-    сотрудник должен прикрепиться автоматически")."""
+    сотрудник должен прикрепиться автоматически").
+
+    БАГ (найден по репродукции Vladimir): раньше при 0 сотрудников
+    ЗДЕСЬ И СЕЙЧАС эндпоинт возвращал ok:False, ничего не записывая —
+    но тур подсвечивает ПЕРВОЕ найденное в DOM подразделение
+    (querySelector), не обязательно то, где реально есть люди. Если
+    пользователь завёл сотрудника в другое/вложенное подразделение, а
+    тур предлагает перетащить пустое верхнеуровневое — пользователь
+    застревал на этом шаге навсегда (правило никогда не записывалось,
+    маркер никогда не появлялся). Правильная архитектура (как и
+    предложил Vladimir): прикрепление ПУСТОГО подразделения — не
+    ошибка, а нормальное действие, ставящее правило на будущее.
+    Сотрудники, добавленные в это подразделение ПОСЛЕ, унаследуют
+    локацию автоматически (см. employee_create())."""
     db = request.state.db
     org = request.state.org
     loc = db.query(Location).filter_by(id=location_id, organization_id=org.id).first()
     if not loc:
         return {"ok": False, "error": "Локация не найдена"}
     employees = db.query(Employee).filter_by(organization_id=org.id, division_id=division_id).all()
-    if not employees:
-        return {"ok": False, "error": "В этом подразделении пока нет сотрудников"}
     for emp in employees:
         if loc not in emp.locations:
             emp.locations.append(loc)
