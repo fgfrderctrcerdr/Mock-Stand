@@ -6,10 +6,10 @@
     (Настройки → Администрирование → Пользователи → тумблер «Телефон + invite»).</p>
 
   <table class="datatable">
-    <thead><tr><th>ФИО</th><th>Телефон</th><th>Статус</th><th></th></tr></thead>
+    <thead><tr><th>ФИО</th><th>Телефон</th><th>Статус</th></tr></thead>
     <tbody>
       {% for e in employees %}
-      <tr data-row-id="{{ e.id }}" {{ 'data-invite-active="1"' if e.invite_status == 'active' else '' }}>
+      <tr data-row-id="{{ e.id }}">
         <td>{{ e.full_name }}</td>
         <td>
           {% if e.invite_status == 'none' %}
@@ -25,26 +25,19 @@
           {% endif %}
         </td>
         <td>
+          {# Уточнение: концепт больше не требует симулировать ПРИНЯТИЕ
+             приглашения — задача администратора заканчивается на отправке.
+             invited/active показываем одинаково, различие больше ничего
+             не решает (см. main.py has_uninvited_employees). #}
           {% if e.invite_status == 'none' %}
             <span class="status-pill status-pill--muted">Не приглашён</span>
-          {% elif e.invite_status == 'invited' %}
-            <span class="status-pill status-pill--warn">Ожидает приглашения</span>
           {% else %}
-            <span class="status-pill status-pill--ok">Активный</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if e.invite_status == 'invited' %}
-          <form method="post" action="/vhr/admin/users/{{ e.id }}/simulate_activate" style="display:inline">
-            <button class="btn btn--ghost btn--sm" type="submit" title="В реальном Verifix — сотрудник сам ставит Verifix ID по SMS и принимает инвайт">
-              Симулировать принятие
-            </button>
-          </form>
+            <span class="status-pill status-pill--ok">Приглашён</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="datatable__empty">Сначала добавьте сотрудников в разделе «Кадры → Сотрудники»</td></tr>
+      <tr><td colspan="3" class="datatable__empty">Сначала добавьте сотрудников в разделе «Кадры → Сотрудники»</td></tr>
       {% endfor %}
     </tbody>
   </table>

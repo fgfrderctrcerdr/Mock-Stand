@@ -348,10 +348,15 @@ def base_ctx(request: Request, page_title: str):
 
     # Уточнение Vladimir: шаг приглашения должен требовать ВСЕХ сотрудников
     # приглашёнными/активными, не "хотя бы одного" (как было раньше).
+    # Уточнение Vladimir: концепт не должен требовать симуляции ПРИНЯТИЯ
+    # приглашения (invite_status='active') — задача администратора
+    # закончена в момент ОТПРАВКИ приглашения, дальше это уже действие
+    # самого сотрудника (вне контроля админа, как и в реальности). Раньше
+    # здесь стояло != "active", что требовало ещё и симулировать принятие.
     has_uninvited_employees = (
         db.query(Employee)
         .filter_by(organization_id=org_id)
-        .filter(Employee.invite_status != "active")
+        .filter(Employee.invite_status == "none")
         .first()
         is not None
     )
@@ -1067,10 +1072,10 @@ def users_invite(request: Request, employee_id: str, phone: str = Form("")):
 
 @app.post("/vhr/admin/users/{employee_id}/simulate_activate")
 def users_simulate_activate(request: Request, employee_id: str):
-    """Кнопка-эмулятор: 'сотрудник поставил Verifix ID и принял инвайт'.
-    Настоящий мобильный флоу (SMS → установка → deep link) — открытый
-    вопрос по дизайну, см. обсуждение с Vladimir; для мока схлопываем
-    в один клик, чтобы можно было дойти до JTBD-1/2."""
+    """Оставлено как ЭНДПОИНТ (не удаляю совсем — старые данные могли
+    сослаться на activated_at), но кнопка убрана из UI (см. users_list.html)
+    — концепт больше не должен требовать симулировать ПРИНЯТИЕ приглашения,
+    только его отправку (см. изменение has_uninvited_employees выше)."""
     db = request.state.db
     org = request.state.org
     emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
