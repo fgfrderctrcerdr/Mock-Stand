@@ -129,9 +129,12 @@
     for (var i = 0; i < els.length; i++) els[i].classList.remove('vtour-force-open');
   }
 
-  // Кнопка «Далее» (см. renderNextButton) вставляется НАСТОЯЩИМ элементом
-  // прямо в страницу (не в #vtour-root — см. пояснение там же), поэтому
-  // тоже переживает root.innerHTML='' и требует явной очистки.
+  // Кнопка «Далее» раньше вставлялась настоящим элементом ПРЯМО В
+  // СТРАНИЦУ (не в #vtour-root) — требовало явной очистки отдельно от
+  // root.innerHTML=''. По запросу кнопка стала фиксированной (правый
+  // нижний угол) и теперь живёт ВНУТРИ #vtour-root — очищается сама
+  // собой при обычном root.innerHTML=''. Функция оставлена как
+  // защитный no-op на случай, если где-то остался старый элемент.
   function clearInjectedNextButton() {
     var els = document.querySelectorAll('.vtour-next-inline');
     for (var i = 0; i < els.length; i++) els[i].remove();
@@ -317,23 +320,18 @@
   // формы: тогда она сама съезжает вниз вместе с содержимым и всегда
   // долистываема, как обычная часть страницы.
   function renderNextButton(step, actionTarget) {
-    // QA: для шагов attach_employee/attach_division actionTarget —
-    // .ovp__location-circle, а .parentElement у него — .ovp__location
-    // (ОДНА конкретная локация, flex-item в общем ряду .ovp__locations).
-    // Вставка "после родителя" вставляла кнопку МЕЖДУ круглами локаций
-    // (см. скрин). closest('.ovp__locations') поднимается до ВСЕГО ряда —
-    // кнопка встаёт под всеми локациями, не между ними.
-    var container = actionTarget
-      ? (actionTarget.closest('form') || actionTarget.closest('.entity-form') || actionTarget.closest('.ovp__locations') || actionTarget.parentElement)
-      : document.querySelector('.page');
-    if (!container) return;
-
+    // По запросу: кнопка "Далее" теперь фиксирована в правом нижнем углу
+    // экрана (не встроена в поток страницы рядом с формой) — раньше её
+    // было тяжело найти, если форма длинная или прокручена. actionTarget
+    // больше не нужен для позиционирования (та путаница со вставкой
+    // "между локациями" отпадает сама собой — фиксированной позиции
+    // некуда "встраиваться").
     var wrap = el('div', 'vtour-next-inline');
     wrap.innerHTML =
       '<span class="vtour-next-inline__hint">' + esc(step.doneHint || 'Минимум выполнен — можно добавить ещё') + '</span>' +
       '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>' +
       '<div class="vtour-inline-warning" hidden></div>';
-    container.parentNode.insertBefore(wrap, container.nextSibling);
+    ensureRoot().appendChild(wrap);
 
     var warnEl = wrap.querySelector('.vtour-inline-warning');
     wrap.querySelector('.vtour-next-inline__btn').addEventListener('click', function () {
@@ -356,6 +354,29 @@
         }
       });
     });
+
+    // Одноразовая подсказка "вот где кнопка Далее" — по запросу,
+    // показываем ТОЛЬКО один раз за всю историю (это первое появление
+    // кнопки вообще — обычно шаг локаций, сразу после компании).
+    // Затемнение/подсветку/стрелку убираем только по явному "Понятно",
+    // не по таймеру — человек сам решает, что уже увидел.
+    var seenNextIntro = false;
+    try { seenNextIntro = localStorage.getItem(LS_KEY + '_next_intro_seen') === '1'; } catch (e) {}
+    if (!seenNextIntro) {
+      var dim = el('div', 'vtour-next-intro-dim');
+      wrap.classList.add('vtour-next-inline--intro');
+      var callout = el('div', 'vtour-next-callout',
+        '<p class="vtour-next-callout__text">Это кнопка «Далее» — она всегда будет в этом углу экрана и переводит к следующему шагу настройки, когда вы будете готовы.</p>' +
+        '<button class="vtour-btn vtour-next-callout__ok">Понятно</button>');
+      ensureRoot().appendChild(dim);
+      ensureRoot().appendChild(callout);
+      callout.querySelector('.vtour-next-callout__ok').addEventListener('click', function () {
+        try { localStorage.setItem(LS_KEY + '_next_intro_seen', '1'); } catch (e) {}
+        fadeOut(dim);
+        fadeOut(callout);
+        wrap.classList.remove('vtour-next-inline--intro');
+      });
+    }
   }
 
   // Кастомный диалог подтверждения с кнопками "Да/Нет" — по запросу

@@ -62,18 +62,38 @@
 .vtour-note--ok { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
 .vtour-pop__actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* Компактная инлайн-кнопка «Далее» у формы — НЕ попап (см. фидбек №3:
-   не должно быть «ещё одного сайдбара»). Вставляется НАСТОЯЩИМ элементом
-   в поток страницы сразу после формы (см. JS renderNextButton) — не
-   position:fixed, поэтому не «уезжает» при скролле и всегда достижима
-   обычной прокруткой, даже если форма выше экрана (см. фидбек №1/№2). */
+/* Кнопка «Далее» — по запросу теперь ФИКСИРОВАНА в правом нижнем углу
+   экрана (была встроена в поток страницы после формы — иногда было
+   тяжело её найти, особенно на длинных формах). Всегда на одном месте,
+   не нужно скроллить, чтобы её увидеть. */
 .vtour-next-inline {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: fixed; bottom: 24px; right: 24px; z-index: 99997;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; max-width: 340px;
   background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px;
-  padding: 9px 12px; margin-top: 14px; box-shadow: 0 4px 14px rgba(17,24,39,0.06);
+  padding: 9px 12px; box-shadow: 0 8px 24px rgba(17,24,39,0.14);
 }
 .vtour-next-inline__hint { font-size: 12.5px; color: #065f46; }
 .vtour-next-inline__btn { flex: none; }
+
+/* Кольцо-подсветка вокруг кнопки при одноразовой вводной подсказке —
+   без затемнения всего экрана (кнопка и так в углу, не мешает форме). */
+.vtour-next-inline--intro {
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.25), 0 8px 24px rgba(17,24,39,0.14);
+}
+.vtour-next-intro-dim {
+  position: fixed; inset: 0; background: rgba(17,24,39,0.15); z-index: 99995; pointer-events: none;
+}
+.vtour-next-callout {
+  position: fixed; bottom: 96px; right: 24px; z-index: 99998; max-width: 280px;
+  background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 12px 32px rgba(17,24,39,0.22);
+}
+.vtour-next-callout::after {
+  /* "стрелка" — треугольник, указывающий вниз на кнопку под коллаутом */
+  content: ''; position: absolute; bottom: -8px; right: 28px;
+  width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 8px solid #fff;
+}
+.vtour-next-callout__text { font-size: 13px; line-height: 1.4; color: #111827; margin: 0 0 10px; }
 
 .vtour-inline-warning {
   width: 100%; font-size: 12.5px; line-height: 1.4;
