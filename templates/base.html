@@ -64,26 +64,26 @@
 
     {% if not hide_org_panel %}
     <aside class="org-visual-panel">
-      <div class="ovp__title">Оргструктура</div>
+      <div class="ovp__title">{{ t('ovp.org_structure') }}</div>
 
       {% macro render_node(node) %}
       <li>
         <div class="org-tree__node">
           <div class="ovp__division-head" draggable="true" data-division-id="{{ node.division.id }}"
-               title="Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников этого подразделения">{{ node.division.name }}</div>
+               title="{{ t('ovp.drag_division_hint') }}">{{ node.division.name }}</div>
           <div class="ovp__division-body">
             {% if node.employees %}
             <div class="ovp__avatar-row">
               {% for e in node.employees %}
-              <span class="ovp__avatar-mini" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}{{ ' — ' + org_snapshot.position_by_id.get(e.position_id) if org_snapshot.position_by_id.get(e.position_id) else '' }} — перетащите на локацию">{{ display_name(e.full_name) }}</span>
+              <span class="ovp__avatar-mini" draggable="true" data-employee-id="{{ e.id }}" title="{{ e.full_name }}{{ ' — ' + org_snapshot.position_by_id.get(e.position_id) if org_snapshot.position_by_id.get(e.position_id) else '' }}{{ t('ovp.drag_employee_suffix') }}">{{ display_name(e.full_name) }}</span>
               {% endfor %}
             </div>
             <div class="ovp__division-count">{{ node.employees|length }} {{ employees_word(node.employees|length) }}</div>
             {% else %}
-            <div class="ovp__empty-note">Пока нет сотрудников</div>
+            <div class="ovp__empty-note">{{ t('ovp.no_employees') }}</div>
             {% endif %}
           </div>
-          <div class="ovp__division-footer">Подразделений: {{ node.child_count }}</div>
+          <div class="ovp__division-footer">{{ t('ovp.child_divisions_count', count=node.child_count) }}</div>
         </div>
         {% if node.children %}
         <ul>
@@ -106,13 +106,13 @@
         <ul class="org-tree">
           <li>
             <div class="org-tree__node org-tree__node--root" draggable="true" data-company="1"
-                 title="Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников компании">{{ org_snapshot.company_name or 'Компания' }}</div>
+                 title="{{ t('ovp.drag_company_hint') }}">{{ org_snapshot.company_name or t('ovp.company_fallback') }}</div>
             {% if org_snapshot.division_tree %}
             <ul>
               {% for node in org_snapshot.division_tree %}{{ render_node(node) }}{% endfor %}
             </ul>
             {% else %}
-            <div class="ovp__empty-note" style="margin-top:10px;">Подразделений пока нет</div>
+            <div class="ovp__empty-note" style="margin-top:10px;">{{ t('ovp.no_divisions') }}</div>
             {% endif %}
           </li>
         </ul>
@@ -123,7 +123,7 @@
            разрастётся) — график здесь дополнительная сводка, не основной
            элемент, как оргструктура/локации. -->
       {% if org_snapshot.schedules %}
-      <div class="ovp__title" style="margin-top:26px;">Графики</div>
+      <div class="ovp__title" style="margin-top:26px;">{{ t('ovp.schedules_title') }}</div>
       <div class="ovp__schedule-list">
         {% for s in org_snapshot.schedules %}
         <div class="ovp__schedule-row"><span class="ovp__schedule-name">{{ s.name }}</span><span class="ovp__schedule-detail">{{ schedule_summary(s) }}</span></div>
@@ -131,8 +131,8 @@
       </div>
       {% endif %}
 
-      <div class="ovp__title" style="margin-top:26px;">Локации</div>
-      <p class="ovp__hint">Перетащите сотрудника ИЛИ целое подразделение (за шапку карточки) сюда, чтобы прикрепить. Один человек может быть прикреплён к нескольким локациям — перетаскивание добавляет, не заменяет. Клик по аватару внутри круга — снять именно эту локацию.</p>
+      <div class="ovp__title" style="margin-top:26px;">{{ t('ovp.locations_title') }}</div>
+      <p class="ovp__hint">{{ t('ovp.locations_hint') }}</p>
 
       <div class="ovp__locations">
         {% for row in org_snapshot.loc_rows %}
@@ -144,20 +144,20 @@
                выезжает сбоку по клику, отдельными карточками. -->
           <div class="ovp__location-circle ovp__location-circle--overflow" data-location-id="{{ row.location.id }}">
             <button type="button" class="ovp__overflow-dots" data-location-toggle="{{ row.location.id }}"
-                    title="Показать всех {{ row.employees|length }} сотрудников">•••</button>
+                    title="{{ t('ovp.show_all_employees', count=row.employees|length) }}">•••</button>
           </div>
           <div class="ovp__location-overflow-list" id="loc-overflow-{{ row.location.id }}" hidden>
             <div class="ovp__location-overflow-title">{{ row.location.name }} — {{ row.employees|length }} {{ employees_word(row.employees|length) }}</div>
             {% for e in row.employees %}
             <div class="ovp__overflow-cell" data-employee-id="{{ e.id }}" data-location-id="{{ row.location.id }}"
-                 title="Клик — снять с этой локации">{{ e.full_name }}{% if org_snapshot.position_by_id.get(e.position_id) %} <span class="ovp__overflow-cell-pos">— {{ org_snapshot.position_by_id.get(e.position_id) }}</span>{% endif %}</div>
+                 title="{{ t('ovp.click_to_detach_title') }}">{{ e.full_name }}{% if org_snapshot.position_by_id.get(e.position_id) %} <span class="ovp__overflow-cell-pos">— {{ org_snapshot.position_by_id.get(e.position_id) }}</span>{% endif %}</div>
             {% endfor %}
           </div>
           {% else %}
           <div class="ovp__location-circle" data-location-id="{{ row.location.id }}">
             {% for e in row.employees %}
             <span class="ovp__avatar ovp__avatar--detach" data-employee-id="{{ e.id }}" data-location-id="{{ row.location.id }}"
-                  title="{{ e.full_name }}{{ ' — ' + org_snapshot.position_by_id.get(e.position_id) if org_snapshot.position_by_id.get(e.position_id) else '' }} — клик, чтобы снять с этой локации">{{ display_name(e.full_name) }}</span>
+                  title="{{ e.full_name }}{{ ' — ' + org_snapshot.position_by_id.get(e.position_id) if org_snapshot.position_by_id.get(e.position_id) else '' }}{{ t('ovp.click_to_detach_suffix') }}">{{ display_name(e.full_name) }}</span>
             {% endfor %}
           </div>
           {% endif %}
@@ -166,7 +166,7 @@
           <div class="ovp__location-divisions">
             {% for d in row.attached_divisions %}
             <button type="button" class="ovp__division-tag" data-division-id="{{ d.id }}" data-location-id="{{ row.location.id }}"
-                    title="Открепить «{{ d.name }}» от этой локации (снимет ВСЕХ сотрудников подразделения)">{{ d.name }} ×</button>
+                    title="{{ t('ovp.detach_division_title', name=d.name) }}">{{ d.name }} ×</button>
             {% endfor %}
           </div>
           {% endif %}
@@ -190,6 +190,12 @@
     // локацию с этого сотрудника (/detach_location), не трогая другие.
     (function () {
       var dragged = null;   // { type: 'employee'|'division'|'company', id?: '...' }
+      var T_ATTACH_ERROR = {{ t('ovp.attach_error') | tojson }};
+      var T_SAVE_ERROR = {{ t('common.save_error') | tojson }};
+      var T_DETACH_CONFIRM = {{ t('ovp.detach_confirm') | tojson }};
+      var T_DETACH_ERROR = {{ t('ovp.detach_error') | tojson }};
+      var T_DETACH_DIVISION_CONFIRM = {{ t('ovp.detach_division_confirm') | tojson }};
+      var T_DETACH_DIVISION_ERROR = {{ t('ovp.detach_division_error') | tojson }};
 
       document.querySelectorAll('.ovp__avatar-mini[draggable="true"]').forEach(function (av) {
         av.addEventListener('dragstart', function () {
@@ -233,8 +239,8 @@
           body.set('location_id', locationId);
           fetch(url, { method: 'POST', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось прикрепить'); })
-            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || T_ATTACH_ERROR); })
+            .catch(function () { alert(T_SAVE_ERROR); });
           dragged = null;
         });
       });
@@ -243,13 +249,14 @@
       // развёрнутом списке (>3 сотрудников) — снять эту одну связь.
       document.querySelectorAll('.ovp__avatar--detach, .ovp__overflow-cell').forEach(function (av) {
         av.addEventListener('click', function () {
-          if (!window.confirm('Снять «' + av.title.split(' — ')[0] + '» с этой локации?')) return;
+          var name = av.title.split(' — ')[0];
+          if (!window.confirm(T_DETACH_CONFIRM.replace('{name}', name))) return;
           var body = new URLSearchParams();
           body.set('location_id', av.dataset.locationId);
           fetch('/vhr/href/employee/' + av.dataset.employeeId + '/detach_location', { method: 'POST', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось снять локацию'); })
-            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || T_DETACH_ERROR); })
+            .catch(function () { alert(T_SAVE_ERROR); });
         });
       });
 
@@ -267,13 +274,13 @@
       document.querySelectorAll('.ovp__division-tag').forEach(function (tag) {
         tag.addEventListener('click', function () {
           var name = tag.textContent.replace(/\s*×\s*$/, '');
-          if (!window.confirm('Открепить «' + name + '» от этой локации? Все сотрудники подразделения будут откреплены от неё.')) return;
+          if (!window.confirm(T_DETACH_DIVISION_CONFIRM.replace('{name}', name))) return;
           var body = new URLSearchParams();
           body.set('location_id', tag.dataset.locationId);
           fetch('/vhr/hrm/division_list/' + tag.dataset.divisionId + '/detach_location', { method: 'POST', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось открепить подразделение'); })
-            .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+            .then(function (data) { if (data.ok) location.reload(); else alert(data.error || T_DETACH_DIVISION_ERROR); })
+            .catch(function () { alert(T_SAVE_ERROR); });
         });
       });
     })();

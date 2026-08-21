@@ -168,6 +168,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tour.next_callout": "Это кнопка «Далее» — она всегда будет в этом углу экрана и переводит к следующему шагу настройки, когда вы будете готовы.",
         "tour.next_callout_ok": "Понятно",
         "tour.done": "Настройка завершена!",
+        "tour.min_done": "Минимум выполнен — можно добавить ещё",
+        "tour.list_empty_warning": "Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.",
+        "tour.done_next": "Готово, дальше",
+        "tour.welcome": "Добро пожаловать",
+        "tour.start": "Начать",
         "lang.switch_ru": "RU", "lang.switch_uz": "UZ",
         "intro.title": "Добро пожаловать в песочницу Verifix",
         "intro.text": "Это учебная копия интерфейса — здесь можно потренироваться в настройке без риска сломать боевые данные. Начнём с пары вопросов о компании, а дальше проведём по шагам: от подразделений до первого отчёта по отработанным часам.",
@@ -354,6 +359,29 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "err.employee_fields_required": "Заполните подразделение, должность, график и телефон. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа.",
         "err.user_phone_empty": "Номер телефона не может быть пустым.",
 
+        # --- Панель оргструктуры справа (base.html) — был пропущен целиком в первом заходе ---
+        "ovp.org_structure": "Оргструктура",
+        "ovp.drag_division_hint": "Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников этого подразделения",
+        "ovp.drag_employee_suffix": " — перетащите на локацию",
+        "ovp.no_employees": "Пока нет сотрудников",
+        "ovp.child_divisions_count": "Подразделений: {count}",
+        "ovp.drag_company_hint": "Перетащите на локацию, чтобы прикрепить ВСЕХ сотрудников компании",
+        "ovp.company_fallback": "Компания",
+        "ovp.no_divisions": "Подразделений пока нет",
+        "ovp.schedules_title": "Графики",
+        "ovp.locations_title": "Локации",
+        "ovp.locations_hint": "Перетащите сотрудника ИЛИ целое подразделение (за шапку карточки) сюда, чтобы прикрепить. Один человек может быть прикреплён к нескольким локациям — перетаскивание добавляет, не заменяет. Клик по аватару внутри круга — снять именно эту локацию.",
+        "ovp.show_all_employees": "Показать всех {count} сотрудников",
+        "ovp.click_to_detach_suffix": " — клик, чтобы снять с этой локации",
+        "ovp.click_to_detach_title": "Клик — снять с этой локации",
+        "ovp.detach_division_title": "Открепить «{name}» от этой локации (снимет ВСЕХ сотрудников подразделения)",
+        "ovp.attach_error": "Не удалось прикрепить",
+        "ovp.detach_confirm": "Снять «{name}» с этой локации?",
+        "ovp.detach_error": "Не удалось снять локацию",
+        "ovp.detach_division_confirm": "Открепить «{name}» от этой локации? Все сотрудники подразделения будут откреплены от неё.",
+        "ovp.detach_division_error": "Не удалось открепить подразделение",
+        "ovp.employee_word": "сотрудник",
+
         # --- Профиль компании (home.html) ---
         "home.title": "Расскажите о компании",
         "home.subtitle": "Эти данные подберут типовые подразделения и должности под вашу сферу — не придётся заводить всё с нуля.",
@@ -398,6 +426,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tour.next_callout": "Bu «Keyingisi» tugmasi — u har doim ekranning shu burchagida bo'ladi va tayyor bo'lganingizda keyingi qadamga o'tkazadi.",
         "tour.next_callout_ok": "Tushunarli",
         "tour.done": "Sozlash yakunlandi!",
+        "tour.min_done": "Minimum bajarildi — yana qo'shishingiz mumkin",
+        "tour.list_empty_warning": "Ro'yxat hali bo'sh — kamida bitta yozuv qo'shing, aks holda keyingi qadamlarda bog'lashga hech narsa bo'lmaydi.",
+        "tour.done_next": "Tayyor, keyingisi",
+        "tour.welcome": "Xush kelibsiz",
+        "tour.start": "Boshlash",
         "lang.switch_ru": "RU", "lang.switch_uz": "UZ",
         "intro.title": "Verifix sinov maydoniga xush kelibsiz",
         "intro.text": "Bu — interfeysning o'quv nusxasi: bu yerda haqiqiy ma'lumotlarni buzish xavfisiz sozlashni mashq qilish mumkin. Kompaniya haqida bir nechta savoldan boshlaymiz, keyin esa bosqichma-bosqich — bo'limlardan tortib ishlangan soatlar bo'yicha birinchi hisobotgacha olib boramiz.",
@@ -585,6 +618,28 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "err.employee_name_empty": "Xodim F.I.Sh. bo'sh bo'lishi mumkin emas.",
         "err.employee_fields_required": "Bo'lim, lavozim, grafik va telefonni to'ldiring. Lokatsiyani keyinroq biriktirish mumkin — xodimni o'ng paneldagi lokatsiyaga tortib olib boring.",
         "err.user_phone_empty": "Telefon raqami bo'sh bo'lishi mumkin emas.",
+
+        "ovp.org_structure": "Tashkiliy tuzilma",
+        "ovp.drag_division_hint": "Bu bo'limning BARCHA xodimlarini biriktirish uchun lokatsiyaga tortib olib boring",
+        "ovp.drag_employee_suffix": " — lokatsiyaga tortib olib boring",
+        "ovp.no_employees": "Hali xodimlar yo'q",
+        "ovp.child_divisions_count": "Bo'limlar: {count}",
+        "ovp.drag_company_hint": "Kompaniyaning BARCHA xodimlarini biriktirish uchun lokatsiyaga tortib olib boring",
+        "ovp.company_fallback": "Kompaniya",
+        "ovp.no_divisions": "Hali bo'limlar yo'q",
+        "ovp.schedules_title": "Grafiklar",
+        "ovp.locations_title": "Lokatsiyalar",
+        "ovp.locations_hint": "Xodimni YOKI butun bo'limni (kartochka sarlavhasidan) bu yerga tortib olib boring, biriktirish uchun. Bir kishi bir nechta lokatsiyaga biriktirilishi mumkin — tortish qo'shadi, almashtirmaydi. Doira ichidagi avatarga bosish — aynan shu lokatsiyani olib tashlaydi.",
+        "ovp.show_all_employees": "Barcha {count} xodimni ko'rsatish",
+        "ovp.click_to_detach_suffix": " — ushbu lokatsiyadan olib tashlash uchun bosing",
+        "ovp.click_to_detach_title": "Bosing — bu lokatsiyadan olib tashlanadi",
+        "ovp.detach_division_title": "«{name}»ni bu lokatsiyadan ajratish (bo'limning BARCHA xodimlarini olib tashlaydi)",
+        "ovp.attach_error": "Biriktirib bo'lmadi",
+        "ovp.detach_confirm": "«{name}» ushbu lokatsiyadan olib tashlansinmi?",
+        "ovp.detach_error": "Lokatsiyani olib tashlab bo'lmadi",
+        "ovp.detach_division_confirm": "«{name}» bu lokatsiyadan ajratilsinmi? Bo'limning barcha xodimlari undan ajratiladi.",
+        "ovp.detach_division_error": "Bo'limni ajratib bo'lmadi",
+        "ovp.employee_word": "xodim",
     },
 }
 
@@ -795,7 +850,11 @@ def to_local(dt):
 
 def employees_word(n: int) -> str:
     """Склонение "сотрудник/сотрудника/сотрудников" — для карточки
-    подразделения в стиле реального Verifix (см. референс-скриншот)."""
+    подразделения в стиле реального Verifix (см. референс-скриншот).
+    В узбекском склонения по числу нет (существительное неизменно) —
+    просто одно слово независимо от n."""
+    if current_lang.get() == "uz":
+        return t("ovp.employee_word")
     n_abs = abs(n) % 100
     n1 = n_abs % 10
     if 11 <= n_abs <= 14:

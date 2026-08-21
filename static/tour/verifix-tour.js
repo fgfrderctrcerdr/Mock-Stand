@@ -336,7 +336,7 @@
     // некуда "встраиваться").
     var wrap = el('div', 'vtour-next-inline');
     wrap.innerHTML =
-      '<span class="vtour-next-inline__hint">' + esc(step.doneHint || 'Минимум выполнен — можно добавить ещё') + '</span>' +
+      '<span class="vtour-next-inline__hint">' + esc(step.doneHint || t('tour.min_done', 'Минимум выполнен — можно добавить ещё')) + '</span>' +
       '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || t('tour.next', 'Далее →')) + '</button>' +
       '<div class="vtour-inline-warning" hidden></div>';
     ensureRoot().appendChild(wrap);
@@ -357,7 +357,7 @@
         } else {
           state.satisfied[step.id] = false;
           warnEl.textContent = step.emptyWarning ||
-            'Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.';
+            t('tour.list_empty_warning', 'Список пока пуст — добавьте хотя бы одну запись, иначе следующие шаги не будет к чему привязать.');
           warnEl.hidden = false;
         }
       });
@@ -571,7 +571,7 @@
     } else if (step.check) {
       cta = '<div class="vtour-waiting">' + esc(t('tour.waiting', 'Ждём выполнения на странице…')) + '</div>';
     } else {
-      cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
+      cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || t('tour.done_next', 'Готово, дальше'))) + '</button>';
     }
     var note =
       mode === 'notfound' ? '<div class="vtour-note">' + esc(t('tour.notfound', 'Элемент не найден на экране — селектор уточним под стенд.')) + '</div>' : '';
@@ -695,9 +695,9 @@
     var overlay = el('div', 'vtour-intro-overlay');
     var card = el('div', 'vtour-intro-card');
     card.innerHTML =
-      '<div class="vtour-intro-card__title">' + esc(intro.title || 'Добро пожаловать') + '</div>' +
+      '<div class="vtour-intro-card__title">' + esc(intro.title || t('tour.welcome', 'Добро пожаловать')) + '</div>' +
       '<div class="vtour-intro-card__text">' + esc(intro.text || '') + '</div>' +
-      '<button class="vtour-btn vtour-intro-start">' + esc(intro.cta || 'Начать') + '</button>';
+      '<button class="vtour-btn vtour-intro-start">' + esc(intro.cta || t('tour.start', 'Начать')) + '</button>';
     overlay.appendChild(card);
     root.appendChild(overlay);
     card.querySelector('.vtour-intro-start').addEventListener('click', function () {
