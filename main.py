@@ -20,6 +20,8 @@ Organization при первом заходе.
 from collections import defaultdict
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
+import os
+import time
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from urllib.parse import quote
@@ -105,6 +107,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Verifix Mock-Stand", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# QA (Railway, найдено Claude Code): версия ассетов для cache-busting —
+# на Railway берём хэш коммита (стабилен в пределах деплоя, меняется на
+# новом — см. static_cache_headers ниже), локально — таймстамп старта
+# процесса (тоже стабилен, пока uvicorn не перезапущен).
+ASSET_VERSION = os.environ.get("RAILWAY_GIT_COMMIT_SHA") or str(int(time.time()))
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 
 def name_by_id(items, item_id):
@@ -717,14 +726,20 @@ def set_lang(request: Request, lang: str):
     return response
 
 
-# На время активной разработки — без этого браузер может закешировать
-# JS/CSS (особенно static/tour/*) агрессивнее, чем HTML, и после git pull
-# показывать старую версию тура даже после обычного рефреша страницы.
+# QA (Railway, найдено Claude Code): раньше здесь было no-store на ЛЮБОЙ
+# запрос под /static/ — оправдано только для локальной разработки (после
+# git pull видеть свежий JS/CSS без танцев с кэшем), но на реальном
+# деплое означает, что браузер ЗАНОВО перекачивает весь CSS/JS/Leaflet
+# (~162 КБ) на КАЖДЫЙ переход между страницами — Mock-Stand подвисает
+# только на Railway (сеть до CDN дольше, чем localhost). Fix: долгий
+# иммутабельный кэш + версионирование URL (?v=...), а не отказ от кэша
+# вообще — свежесть после деплоя достигается сменой ?v=, не сменой
+# Cache-Control.
 @app.middleware("http")
-async def disable_static_cache(request: Request, call_next):
+async def static_cache_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith("/static/"):
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 

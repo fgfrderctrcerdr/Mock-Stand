@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ t(page_title) }} — Verifix Mock-Stand</title>
-  <link rel="stylesheet" href="/static/css/styles.css" />
-  <link rel="stylesheet" href="/static/tour/verifix-tour.css" />
+  <link rel="stylesheet" href="/static/css/styles.css?v={{ asset_version }}" />
+  <link rel="stylesheet" href="/static/tour/verifix-tour.css?v={{ asset_version }}" />
 </head>
 <body>
   {% if individual_attach_done %}<div data-individual-location-attach="1" style="display:none"></div>{% endif %}
@@ -350,8 +350,8 @@
     window.VERIFIX_I18N = {{ i18n_json | tojson }};
   </script>
 
-  <script src="/static/tour/verifix-tour.js"></script>
-  <script src="/static/tour/steps.js"></script>
+  <script src="/static/tour/verifix-tour.js?v={{ asset_version }}"></script>
+  <script src="/static/tour/steps.js?v={{ asset_version }}"></script>
   <script>
     VerifixTour.start(VERIFIX_TOUR_STEPS, {
       title: {{ t('tour.title') | tojson }},
