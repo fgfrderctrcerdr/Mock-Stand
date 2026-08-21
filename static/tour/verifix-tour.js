@@ -21,6 +21,14 @@
   'use strict';
 
   var LS_KEY = 'verifix_tour_progress';
+
+  // Локализация (запрос Vladimir) — словарь текущего языка приходит из
+  // base.html (window.VERIFIX_I18N, серверный t() на тот же ключ). Тут
+  // просто читаем с фолбэком на переданный русский текст, если ключа нет
+  // (например, страница отдана без инъекции — защита от падения).
+  function t(key, fallback) {
+    return (global.VERIFIX_I18N && global.VERIFIX_I18N[key]) || fallback;
+  }
   var state = { steps: [], done: {}, satisfied: {}, opts: {}, activeId: null, pollTimer: null, justAdvanced: false, panelExpanded: false };
 
   function saveProgress() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.done)); } catch (e) {} }
@@ -178,8 +186,8 @@
     var activeStepObj = state.steps.filter(function (s) { return s.id === state.activeId; })[0];
 
     var head = el('div', 'vtour-panel__head',
-      '<div class="vtour-panel__title">' + esc(state.opts.title || 'Настройка Verifix') + '</div>' +
-      '<button class="vtour-toggle" title="' + (state.panelExpanded ? 'Свернуть' : 'Развернуть весь список') + '">' +
+      '<div class="vtour-panel__title">' + esc(state.opts.title || t('tour.title', 'Настройка Verifix')) + '</div>' +
+      '<button class="vtour-toggle" title="' + (state.panelExpanded ? t('tour.collapse', 'Свернуть') : t('tour.expand', 'Развернуть весь список')) + '">' +
       (state.panelExpanded ? '▴' : '▾') + '</button>');
     panel.appendChild(head);
 
@@ -190,7 +198,7 @@
     panel.appendChild(prog);
 
     if (activeStepObj) {
-      panel.appendChild(el('div', 'vtour-panel__current', 'Сейчас: <b>' + esc(activeStepObj.title) + '</b>'));
+      panel.appendChild(el('div', 'vtour-panel__current', t('tour.now', 'Сейчас:') + ' <b>' + esc(activeStepObj.title) + '</b>'));
     }
 
     var list = el('div', 'vtour-list');
@@ -208,7 +216,7 @@
     panel.appendChild(list);
 
     if (doneCount === total && total) {
-      panel.appendChild(el('div', 'vtour-done', '🎉 ' + esc(state.opts.doneText || 'Настройка завершена!')));
+      panel.appendChild(el('div', 'vtour-done', '🎉 ' + esc(state.opts.doneText || t('tour.done', 'Настройка завершена!'))));
     }
 
     // В отведённый слот (верх левой колонки), а не в плавающий оверлей —
@@ -329,7 +337,7 @@
     var wrap = el('div', 'vtour-next-inline');
     wrap.innerHTML =
       '<span class="vtour-next-inline__hint">' + esc(step.doneHint || 'Минимум выполнен — можно добавить ещё') + '</span>' +
-      '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || 'Далее →') + '</button>' +
+      '<button class="vtour-btn vtour-next-inline__btn">' + esc(step.nextLabel || t('tour.next', 'Далее →')) + '</button>' +
       '<div class="vtour-inline-warning" hidden></div>';
     ensureRoot().appendChild(wrap);
 
@@ -366,8 +374,8 @@
       var dim = el('div', 'vtour-next-intro-dim');
       wrap.classList.add('vtour-next-inline--intro');
       var callout = el('div', 'vtour-next-callout',
-        '<p class="vtour-next-callout__text">Это кнопка «Далее» — она всегда будет в этом углу экрана и переводит к следующему шагу настройки, когда вы будете готовы.</p>' +
-        '<button class="vtour-btn vtour-next-callout__ok">Понятно</button>');
+        '<p class="vtour-next-callout__text">' + esc(t('tour.next_callout', 'Это кнопка «Далее» — она всегда будет в этом углу экрана и переводит к следующему шагу настройки, когда вы будете готовы.')) + '</p>' +
+        '<button class="vtour-btn vtour-next-callout__ok">' + esc(t('tour.next_callout_ok', 'Понятно')) + '</button>');
       ensureRoot().appendChild(dim);
       ensureRoot().appendChild(callout);
       callout.querySelector('.vtour-next-callout__ok').addEventListener('click', function () {
@@ -389,8 +397,8 @@
     var box = el('div', 'vtour-confirm-box',
       '<p class="vtour-confirm-text"></p>' +
       '<div class="vtour-confirm-actions">' +
-      '<button class="vtour-btn vtour-btn--ghost vtour-confirm-no">Нет</button>' +
-      '<button class="vtour-btn vtour-confirm-yes">Да</button>' +
+      '<button class="vtour-btn vtour-btn--ghost vtour-confirm-no">' + esc(t('tour.no', 'Нет')) + '</button>' +
+      '<button class="vtour-btn vtour-confirm-yes">' + esc(t('tour.yes', 'Да')) + '</button>' +
       '</div>');
     box.querySelector('.vtour-confirm-text').textContent = message;
     overlay.appendChild(box);
@@ -559,14 +567,14 @@
       // а кнопка-шорткат этому прямо противоречит (в обход реального клика).
       // Кнопка остаётся ТОЛЬКО как честный fallback, когда селектор не нашёлся
       // и показать пользователю нечего.
-      cta = target ? '' : '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || 'Открыть экран') + '</button>';
+      cta = target ? '' : '<button class="vtour-btn vtour-open">' + esc(state.opts.openLabel || t('tour.open_screen', 'Открыть экран')) + '</button>';
     } else if (step.check) {
-      cta = '<div class="vtour-waiting">Ждём выполнения на странице…</div>';
+      cta = '<div class="vtour-waiting">' + esc(t('tour.waiting', 'Ждём выполнения на странице…')) + '</div>';
     } else {
       cta = '<button class="vtour-btn vtour-next">' + esc(step.nextLabel || (state.opts.nextLabel || 'Готово, дальше')) + '</button>';
     }
     var note =
-      mode === 'notfound' ? '<div class="vtour-note">Элемент не найден на экране — селектор уточним под стенд.</div>' : '';
+      mode === 'notfound' ? '<div class="vtour-note">' + esc(t('tour.notfound', 'Элемент не найден на экране — селектор уточним под стенд.')) + '</div>' : '';
 
     // Пропустить — только для явно опциональных шагов (step.optional === true).
     // Сейчас это только «Роли» (когда появятся как шаг); всё остальное — либо
@@ -677,6 +685,7 @@
     },
     stop: function () { clearTimeout(state.pollTimer); var r = document.getElementById('vtour-root'); if (r) r.remove(); },
     reset: function () { state.done = {}; state.satisfied = {}; saveProgress(); render(); },
+    t: t,   // локализация — steps.js не имеет доступа к замыканию этого файла, дёргает через публичный API
     _state: state,
   };
 

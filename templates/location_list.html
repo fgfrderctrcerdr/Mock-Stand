@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Локации</h1>
-  <p class="page__subtitle">Место, где сотрудники отмечают приход и уход (зона вокруг точки на карте).</p>
+  <h1 class="page__title">{{ t('loc_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('loc_page.subtitle') }}</p>
 
   <table class="datatable">
-    <thead><tr><th>Название</th><th>Адрес</th><th>Радиус зоны, м</th><th></th></tr></thead>
+    <thead><tr><th>{{ t('common.name_col') }}</th><th>{{ t('loc_page.address_col') }}</th><th>{{ t('loc_page.radius_col') }}</th><th></th></tr></thead>
     <tbody>
       {% for l in locations %}
       <tr data-row-id="{{ l.id }}">
@@ -14,27 +14,27 @@
         <td>{{ l.accuracy }}</td>
         <td>
           <form method="post" action="/vhr/htt/location_list/{{ l.id }}/delete" style="display:inline"
-                data-confirm="Удалить локацию «{{ l.name }}»?">
-            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
+                data-confirm="{{ t('loc_page.delete_confirm', name=l.name) }}">
+            <button class="btn btn--danger btn--sm" type="submit">{{ t('common.delete') }}</button>
           </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="datatable__empty">Пока не добавлено</td></tr>
+      <tr><td colspan="4" class="datatable__empty">{{ t('common.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   <form method="post" action="/vhr/htt/location_list/create" class="entity-form" id="locForm">
-    <div class="field"><label for="locName">Как называется ваша локация</label><input type="text" id="locName" name="name" required placeholder="Кафе на Мустакиллик" /></div>
+    <div class="field"><label for="locName">{{ t('loc_page.name_label') }}</label><input type="text" id="locName" name="name" required placeholder="{{ t('loc_page.name_placeholder') }}" /></div>
 
     <div class="field">
-      <label for="locAddress">По какому адресу находится ваша локация. С помощью адреса определим gps координаты</label>
+      <label for="locAddress">{{ t('loc_page.address_label') }}</label>
       <div class="field-row" style="align-items:flex-start">
-        <input type="text" id="locAddress" name="address" placeholder="Введите адрес и нажмите «Найти»" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;" />
-        <button type="button" id="locFind" class="btn btn--ghost" style="flex:none">Найти</button>
+        <input type="text" id="locAddress" name="address" placeholder="{{ t('loc_page.address_placeholder') }}" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;" />
+        <button type="button" id="locFind" class="btn btn--ghost" style="flex:none">{{ t('loc_page.find_btn') }}</button>
       </div>
-      <p class="field__hint" id="locCoords">Координаты не выбраны — введите адрес или кликните на карте.</p>
+      <p class="field__hint" id="locCoords">{{ t('loc_page.coords_empty') }}</p>
     </div>
 
     <div id="locMap" style="height:320px;border-radius:10px;border:1.5px solid var(--border);margin-bottom:14px;"></div>
@@ -43,11 +43,11 @@
     <input type="hidden" name="lng" id="locLng" />
 
     <div class="field">
-      <label for="locAccuracy">Радиус зоны, м</label>
+      <label for="locAccuracy">{{ t('loc_page.radius_label') }}</label>
       <input type="number" name="accuracy" id="locAccuracy" value="50" min="1" style="max-width:200px" />
     </div>
 
-    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить локацию</button>
+    <button class="btn btn--primary" type="submit" data-tour="add">{{ t('loc_page.submit') }}</button>
   </form>
 </div>
 
@@ -57,6 +57,7 @@
 (function () {
   var map, marker, circle;
   var TASHKENT = [41.3111, 69.2797];
+  var COORDS_TEMPLATE = {{ t('loc_page.coords_selected') | tojson }};
 
   map = L.map('locMap').setView(TASHKENT, 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
@@ -69,7 +70,7 @@
     document.getElementById('locLng').value = lng;
     marker.setLatLng([lat, lng]).setOpacity(1);
     circle.setLatLng([lat, lng]).setStyle({ opacity: 1, fillOpacity: 0.12 });
-    document.getElementById('locCoords').textContent = 'Координаты: ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    document.getElementById('locCoords').textContent = COORDS_TEMPLATE.replace('{lat}', lat.toFixed(6)).replace('{lng}', lng.toFixed(6));
     if (doReverse) reverseGeocode(lat, lng);
   }
 
@@ -98,10 +99,10 @@
           setPoint(lat, lng, false);
           map.setView([lat, lng], 16);
         } else {
-          alert('Адрес не найден — попробуйте уточнить запрос или кликните точку на карте вручную.');
+          alert({{ t('loc_page.address_not_found') | tojson }});
         }
       })
-      .catch(function () { alert('Ошибка геокодинга — попробуйте позже или кликните точку на карте вручную.'); })
+      .catch(function () { alert({{ t('loc_page.geocode_error') | tojson }}); })
       .finally(function () { btn.disabled = false; });
   }
 
@@ -118,7 +119,7 @@
   document.getElementById('locForm').addEventListener('submit', function (e) {
     if (!document.getElementById('locLat').value) {
       e.preventDefault();
-      alert('Сначала выберите точку на карте или найдите адрес.');
+      alert({{ t('loc_page.pick_point_first') | tojson }});
     }
   });
 })();

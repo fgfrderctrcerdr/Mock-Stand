@@ -18,6 +18,7 @@ Organization при первом заходе.
 """
 
 from collections import defaultdict
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -53,20 +54,20 @@ BASE_DIR = Path(__file__).parent
 # сфер/ролей там уже проверены, не придумываю заново.
 
 INDUSTRIES = [
-    ("retail", "Розница и торговля"),
-    ("food", "Общепит и HoReCa"),
-    ("it", "IT и услуги"),
-    ("manuf", "Производство"),
-    ("edu", "Образование"),
-    ("health", "Медицина"),
-    ("other", "Другое"),
+    ("retail", "industry.retail"),
+    ("food", "industry.food"),
+    ("it", "industry.it"),
+    ("manuf", "industry.manuf"),
+    ("edu", "industry.edu"),
+    ("health", "industry.health"),
+    ("other", "industry.other"),
 ]
 
 ADMIN_ROLES = [
-    ("owner", "Владелец бизнеса"),
-    ("hr", "HR-менеджер"),
-    ("lead", "Руководитель отдела"),
-    ("fin", "Бухгалтер / финансы"),
+    ("owner", "role.owner"),
+    ("hr", "role.hr"),
+    ("lead", "role.lead"),
+    ("fin", "role.fin"),
 ]
 
 # Типовые подразделения/должности по сфере — как «Back of House / Front of
@@ -121,6 +122,484 @@ templates.env.globals["name_by_id"] = name_by_id
 # ============================================================
 
 COOKIE_NAME = "mock_org"
+LANG_COOKIE_NAME = "mock_lang"
+
+
+# ============================================================
+# Локализация (запрос Vladimir: переключатель ru/uz в любой момент).
+# current_lang — contextvar, выставляется в OrgSessionMiddleware из cookie
+# на каждый запрос; t() читает его сама, поэтому в шаблонах достаточно
+# {{ t('key') }} без протаскивания lang через каждый ctx вручную.
+# Для JS (verifix-tour.js/steps.js) тот же словарь целиком уходит в
+# window.VERIFIX_I18N через base.html (см. base_ctx).
+# ============================================================
+
+current_lang: ContextVar[str] = ContextVar("current_lang", default="ru")
+
+TRANSLATIONS: dict[str, dict[str, str]] = {
+    "ru": {
+        # --- Верхняя навигация (menu.py) ---
+        "menu.kadry": "Кадры", "menu.poseshcheniya": "Посещения", "menu.smeny": "Управление сменами",
+        "menu.zarplata": "Зарплата", "menu.otchetnost": "Отчётность", "menu.nastroyki": "Настройки",
+        "menu.col.glavnoe": "Главное", "menu.col.organizatsiya": "Организация", "menu.col.dashboard": "Дашборд",
+        "menu.col.administrirovanie": "Администрирование", "menu.col.spravochniki": "Справочники",
+        "menu.sotrudniki": "Сотрудники", "menu.podrazdeleniya": "Подразделения", "menu.torg_tochki": "Торговые точки",
+        "menu.dolzhnosti": "Должности", "menu.div_stats": "Статистика работы подразделений",
+        "menu.report_queue": "Очередь отчётов", "menu.year_summary": "Итоги года",
+        "menu.grafiki_raboty": "Графики работы", "menu.otsutstvie": "Запросы на отсутствие",
+        "menu.izm_grafika": "Запросы на изменение графика", "menu.zapros_lokatsiya": "Запросы на локацию",
+        "menu.sverhurochnye_zapros": "Запросы на сверхурочные", "menu.zapros_otmetki": "Запросы на отметки",
+        "menu.sverhurochnye": "Сверхурочные", "menu.lokatsii": "Локации", "menu.ustroystva": "Устройства",
+        "menu.otmetki": "Отметки", "menu.indiv_grafiki": "Индивидуальные графики", "menu.raspisaniya": "Расписания",
+        "menu.izm_raspisaniya": "Запросы на изменение расписания",
+        "menu.shablony_smen": "Шаблоны смен", "menu.naznachenie_smen": "Назначение смен",
+        "menu.nachisleniya": "Начисления", "menu.vedomosti": "Ведомости", "menu.vyplaty": "Выплаты",
+        "menu.otchet_chasy": "Отчёт по часам", "menu.otchet_zarplata": "Отчёт по зарплате",
+        "menu.polzovateli": "Пользователи", "menu.roli": "Роли", "menu.spravochniki": "Справочники",
+        "menu.regiony": "Регионы", "menu.banki": "Банки",
+
+        # --- Общий UI тура ---
+        "tour.title": "Настройка Verifix", "tour.collapse": "Свернуть", "tour.expand": "Развернуть весь список",
+        "tour.now": "Сейчас:", "tour.next": "Далее →", "tour.waiting": "Ждём выполнения на странице…",
+        "tour.notfound": "Элемент не найден на экране — селектор уточним под стенд.",
+        "tour.open_screen": "Открыть экран", "tour.yes": "Да", "tour.no": "Нет",
+        "tour.start_over": "↺ Начать с начала",
+        "tour.start_over_confirm": "Удалить все данные этой песочницы (подразделения, сотрудников и т.д.) и начать настройку с первого шага?",
+        "tour.next_callout": "Это кнопка «Далее» — она всегда будет в этом углу экрана и переводит к следующему шагу настройки, когда вы будете готовы.",
+        "tour.next_callout_ok": "Понятно",
+        "tour.done": "Настройка завершена!",
+        "lang.switch_ru": "RU", "lang.switch_uz": "UZ",
+        "intro.title": "Добро пожаловать в песочницу Verifix",
+        "intro.text": "Это учебная копия интерфейса — здесь можно потренироваться в настройке без риска сломать боевые данные. Начнём с пары вопросов о компании, а дальше проведём по шагам: от подразделений до первого отчёта по отработанным часам.",
+        "intro.cta": "Начать настройку",
+
+        # --- Заголовки страниц (page_title) ---
+        "page.home": "Главная", "page.divisions": "Подразделения", "page.positions": "Должности",
+        "page.locations": "Локации", "page.schedules": "Графики работы", "page.employees": "Сотрудники",
+        "page.users": "Пользователи", "page.attendance": "Отметки", "page.report": "Отчёт по посещениям",
+        "stub.text": "Этот раздел — навигационная заглушка мок-стенда: показывает, что в реальном Verifix здесь есть отдельный экран, но функциональность сюда не переносилась (она не нужна для сценариев, которые отрабатывает этот тур).",
+
+        # --- Шаги тура (steps.js) ---
+        "step.company.title": "Расскажите о компании",
+        "step.company.why": "Название, сфера деятельности и ваша роль — это подберёт типовые подразделения и должности под вас.",
+        "step.company.emptyWarning": "Заполните название компании, сферу деятельности и свою роль — без этого нельзя продолжить.",
+
+        "step.locations.title": "Добавьте локацию",
+        "step.locations.why": "Место, где сотрудник отмечает приход/уход.",
+        "step.locations.emptyWarning": "Локация — это место, где сотрудник отмечает приход/уход. Без неё физически негде будет отметиться.",
+
+        "step.divisions.title": "Создайте подразделения",
+        "step.divisions.why": "Оргструктура компании. К подразделениям привязываются сотрудники.",
+        "step.divisions.emptyWarning": "Подразделения — это структура компании (цех, зал, офис). Без хотя бы одного не к чему будет привязать сотрудников на следующих шагах.",
+
+        "step.positions.title": "Заведите должности",
+        "step.positions.why": "Должность определяет, кем работает сотрудник.",
+        "step.positions.emptyWarning": "Должность — это то, кем работает сотрудник (например, «Официант»). Без неё не получится завести сотрудника.",
+
+        "step.schedules.title": "Создайте график работы",
+        "step.schedules.why": "Правила рабочего времени, которые назначаются сотрудникам.",
+        "step.schedules.emptyWarning": "График определяет, когда сотрудник должен быть на работе. Без него система не поймёт, что считать опозданием или переработкой.",
+
+        "step.employees.title": "Добавьте сотрудника",
+        "step.employees.why": "Свяжите подразделение, должность и график в одном сотруднике — локацию прикрепим отдельным шагом дальше.",
+        "step.employees.emptyWarning": "Сотрудник — это тот, кто и будет отмечаться и получать зарплату. Без него оставшиеся шаги (приглашение, отметка, отчёт) не имеют смысла.",
+
+        "step.attach_employee.title": "Прикрепите сотрудника к локации",
+        "step.attach_employee.why": "Перетащите КОНКРЕТНОГО сотрудника (аватар внутри карточки подразделения выше) на круг локации — прикрепится только он. Один человек может быть прикреплён сразу к нескольким локациям.",
+        "step.attach_employee.emptyWarning": "Пока ни один сотрудник не прикреплён ни к одной локации — без этого не с чем будет считать отчёт по конкретной точке.",
+
+        "step.attach_division.title": "Прикрепите ВСЁ подразделение к локации",
+        "step.attach_division.why": "Перетащите тёмную ШАПКУ карточки подразделения (не отдельного сотрудника) на круг локации — прикрепятся СРАЗУ ВСЕ сотрудники этого подразделения (можно и через корневой узел компании — тащить всю компанию целиком).",
+        "step.attach_division.emptyWarning": "Это отдельное действие от прикрепления одного сотрудника — попробуйте перетащить именно шапку карточки подразделения, целиком.",
+        "step.attach_division.confirm": "Не всем сотрудникам прикреплена локация. Это значит, что вы не сможете на 100% быть уверены в том, что данные сотрудники сделали свою отметку на рабочем месте. Уверены, что хотите продолжить?",
+
+        "step.invite.title": "Пригласите сотрудника в приложение",
+        "step.invite.why": "Как в реальном Verifix: телефон + инвайт. Без этого нет способа сотруднику отметиться.",
+        "step.invite.emptyWarning": "Не все сотрудники приглашены — без приглашения у них не будет доступа к приложению, значит, физически нечем будет сделать отметку.",
+
+        "step.attendance.title": "Посмотрите отметки посещений",
+        "step.attendance.why": "Здесь видны отметки прихода/ухода добавленных сотрудников. Если никто ещё не отмечался — список пустой, это нормально: шаг просто показывает, куда смотреть, действие не обязательно.",
+        "step.attendance.doneHint": "Здесь видны отметки прихода/ухода сотрудников — список может быть пустым, если никто ещё не отмечался. Когда посмотрели — жмите «Далее».",
+
+        "step.report.title": "Посмотрите отчёт по посещениям",
+        "step.report.why": "Отчёт по отработанным часам — в формате как в реальном Verifix. Если отметок ещё не было, отчёт будет пустым, это тоже нормально.",
+        "step.report.doneHint": "Отчёт по отработанным часам — как в реальном Verifix. Пусто, если ещё не было отметок — это нормально.",
+
+        # --- Общие переиспользуемые строки ---
+        "common.delete": "Удалить", "common.save_error": "Не удалось сохранить — проверьте соединение и попробуйте снова.",
+        "common.top_level_option": "— верхний уровень —",
+
+        # --- Подразделения (division_list.html) ---
+        "div_page.title": "Подразделения",
+        "div_page.subtitle": "Можно вкладывать подразделения друг в друга — просто перетащите строку на другую.",
+        "div_page.make_root": "↥ сделать верхним уровнем",
+        "div_page.parent_label": "Родитель:",
+        "div_page.parent_aria": "Родительское подразделение для «{name}» (альтернатива drag-and-drop)",
+        "div_page.delete_confirm": "Удалить «{name}»? Дочерние подразделения (если есть) будут перепривязаны на уровень выше.",
+        "div_page.empty": "Пока не добавлено",
+        "div_page.dnd_hint": "Перетащите строку на другую мышью — или выберите родителя в списке рядом (клавиатурная альтернатива drag-and-drop).",
+        "div_page.suggestions_label": "Типовые для вашей сферы:",
+        "div_page.name_label": "Как называется ваш отдел",
+        "div_page.name_placeholder": "Кухня",
+        "div_page.parent_field_label": "Какому отделу он подчиняется (опционально)",
+        "div_page.submit": "+ Добавить подразделение",
+        "div_page.reparent_error": "Не удалось перенести подразделение",
+
+        # --- Общие переиспользуемые (для страниц ниже — во избежание дублей) ---
+        "common.empty": "Пока не добавлено", "common.suggestions_label": "Типовые для вашей сферы:",
+        "common.name_col": "Название",
+
+        # --- Должности (job_list.html) ---
+        "job_page.title": "Должности",
+        "job_page.subtitle": "Кем работает сотрудник (Официант, Повар, Бариста…).",
+        "job_page.delete_confirm": "Удалить должность «{name}»?",
+        "job_page.name_label": "Название должности",
+        "job_page.name_placeholder": "Официант",
+        "job_page.submit": "+ Добавить должность",
+
+        # --- Дни недели (короткие) — переиспользуются в schedule_list.html и в панели (schedule_summary) ---
+        "weekday.mon": "Пн", "weekday.tue": "Вт", "weekday.wed": "Ср", "weekday.thu": "Чт",
+        "weekday.fri": "Пт", "weekday.sat": "Сб", "weekday.sun": "Вс",
+
+        # --- Графики работы (schedule_list.html) ---
+        "sch_page.title": "Графики работы",
+        "sch_page.subtitle": "Правила рабочего времени, которые назначаются сотрудникам.",
+        "sch_page.kind_col": "Вид", "sch_page.details_col": "Детали",
+        "sch_page.kind_regular": "Обычный", "sch_page.kind_hourly": "Почасовой",
+        "sch_page.days_per_week": "{days} дн/нед", "sch_page.norm_label": "норма {hours} ч",
+        "sch_page.delete_confirm": "Удалить график «{name}»?",
+        "sch_page.template_label": "Шаблон",
+        "sch_page.tpl_5_2": "Пятидневка (5/2, 9:00–18:00)", "sch_page.tpl_6_1": "Шестидневка (6/1, 9:00–18:00)",
+        "sch_page.tpl_hourly": "Почасовой (норма 12 ч)", "sch_page.tpl_custom": "Кастомный",
+        "sch_page.name_label": "Название графика", "sch_page.name_placeholder": "Дневная смена 9–18",
+        "sch_page.workdays_legend": "Рабочие дни",
+        "sch_page.start_label": "Начало", "sch_page.end_label": "Конец",
+        "sch_page.norm_hours_label": "Норма часов",
+        "sch_page.submit": "+ Добавить график",
+
+        # --- Локации (location_list.html) ---
+        "loc_page.title": "Локации",
+        "loc_page.subtitle": "Место, где сотрудники отмечают приход и уход (зона вокруг точки на карте).",
+        "loc_page.address_col": "Адрес", "loc_page.radius_col": "Радиус зоны, м",
+        "loc_page.delete_confirm": "Удалить локацию «{name}»?",
+        "loc_page.name_label": "Как называется ваша локация", "loc_page.name_placeholder": "Кафе на Мустакиллик",
+        "loc_page.address_label": "По какому адресу находится ваша локация. С помощью адреса определим gps координаты",
+        "loc_page.address_placeholder": "Введите адрес и нажмите «Найти»", "loc_page.find_btn": "Найти",
+        "loc_page.coords_empty": "Координаты не выбраны — введите адрес или кликните на карте.",
+        "loc_page.coords_selected": "Координаты: {lat}, {lng}",
+        "loc_page.radius_label": "Радиус зоны, м",
+        "loc_page.submit": "+ Добавить локацию",
+        "loc_page.address_not_found": "Адрес не найден — попробуйте уточнить запрос или кликните точку на карте вручную.",
+        "loc_page.geocode_error": "Ошибка геокодинга — попробуйте позже или кликните точку на карте вручную.",
+        "loc_page.pick_point_first": "Сначала выберите точку на карте или найдите адрес.",
+
+        # --- Сотрудники (employee_list.html) ---
+        "emp_page.title": "Сотрудники",
+        "emp_page.subtitle": "Свяжите сотрудника с подразделением, должностью, графиком и телефоном — без этого он не сможет отметить приход и получить приглашение.",
+        "emp_page.fio_col": "ФИО", "emp_page.division_col": "Подразделение", "emp_page.position_col": "Должность",
+        "emp_page.schedule_col": "График", "emp_page.location_col": "Локация",
+        "emp_page.no_locations": "Локаций пока нет",
+        "emp_page.delete_confirm": "Удалить сотрудника «{name}»?",
+        "emp_page.fio_label": "ФИО", "emp_page.fio_placeholder": "Иванов Иван",
+        "emp_page.division_label": "Подразделение", "emp_page.position_label": "Должность", "emp_page.schedule_label": "График",
+        "emp_page.phone_label": "Номер телефона", "emp_page.phone_placeholder": "+998 90 123 45 67",
+        "emp_page.location_hint": "Локацию (можно несколько) прикрепите после создания — перетащите сотрудника на неё в панели справа, или выберите в списке выше.",
+        "emp_page.submit": "+ Добавить сотрудника",
+        "emp_page.sync_error": "Не удалось сохранить локации",
+
+        # --- Пользователи (users_list.html) ---
+        "users_page.title": "Пользователи",
+        "users_page.subtitle": "Приглашение сотрудника в приложение отметок — как в реальном Verifix (Настройки → Администрирование → Пользователи → тумблер «Телефон + invite»).",
+        "users_page.phone_col": "Телефон", "users_page.status_col": "Статус",
+        "users_page.phone_aria": "Телефон сотрудника {name}",
+        "users_page.invite_title": "Заполните телефон, чтобы отправить приглашение",
+        "users_page.invite_btn": "Пригласить",
+        "users_page.status_none": "Не приглашён", "users_page.status_invited": "Приглашён",
+        "users_page.empty": "Сначала добавьте сотрудников в разделе «Кадры → Сотрудники»",
+        "users_page.hint": "Сотрудник получает SMS и сам подтверждает приглашение в приложении.",
+
+        # --- Отметки (attendance_mark.html) ---
+        "am_page.title": "Отметки",
+        "am_page.subtitle": "Список отметок прихода/ухода — как в реальном Verifix, это просмотровая страница: отметки приходят от устройств/приложения, здесь их вручную не создают.",
+        "am_page.person_col": "Физическое лицо", "am_page.location_col": "Локация",
+        "am_page.kind_col": "Тип отметки", "am_page.date_col": "Дата создания",
+        "am_page.kind_in": "Приход", "am_page.kind_out": "Уход",
+        "am_page.empty": "Отметок пока нет — они появятся здесь, когда сотрудники начнут отмечаться в приложении Verifix ID.",
+
+        # --- Отчёт по посещениям (timesheet_report.html) ---
+        "rep_page.title": "Отчёт по посещениям",
+        "rep_page.period": "Период: {start} – {end}. Показаны только реальные отметки — если их ещё не было, ячейки пустые, это нормально.",
+        "rep_page.total_col": "Итого", "rep_page.day_off": "В", "rep_page.hour_suffix": "ч",
+        "rep_page.empty": "Сотрудников пока нет",
+
+        # --- Сообщения об ошибках валидации (redirect_with_error) ---
+        "err.company_name_empty": "Название компании не может быть пустым.",
+        "err.company_industry_required": "Выберите сферу деятельности из списка.",
+        "err.company_role_required": "Выберите, кем вы являетесь в компании.",
+        "err.division_name_empty": "Название подразделения не может быть пустым.",
+        "err.position_name_empty": "Название должности не может быть пустым.",
+        "err.location_name_empty": "Название локации не может быть пустым.",
+        "err.location_coords_invalid": "Не удалось определить координаты — карта могла не успеть загрузиться. Кликните точку на карте или найдите адрес заново.",
+        "err.location_radius_not_number": "Радиус зоны отметок должен быть числом.",
+        "err.location_radius_positive": "Радиус зоны отметок должен быть больше нуля.",
+        "err.schedule_name_empty": "Название графика не может быть пустым.",
+        "err.schedule_kind_unknown": "Неизвестный вид графика.",
+        "err.schedule_no_workdays": "У обычного графика должен быть хотя бы один рабочий день.",
+        "err.schedule_bad_weekday": "Некорректный день недели.",
+        "err.schedule_weekday_range": "День недели должен быть от 1 (понедельник) до 7 (воскресенье).",
+        "err.schedule_times_required": "Укажите начало и конец рабочего дня.",
+        "err.schedule_end_before_start": "Конец рабочего дня должен быть позже начала (ночные смены через полночь — отдельный случай, здесь не поддержан).",
+        "err.schedule_norm_positive": "Норма часов должна быть больше нуля.",
+        "err.employee_name_empty": "ФИО сотрудника не может быть пустым.",
+        "err.employee_fields_required": "Заполните подразделение, должность, график и телефон. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа.",
+        "err.user_phone_empty": "Номер телефона не может быть пустым.",
+
+        # --- Профиль компании (home.html) ---
+        "home.title": "Расскажите о компании",
+        "home.subtitle": "Эти данные подберут типовые подразделения и должности под вашу сферу — не придётся заводить всё с нуля.",
+        "home.company_name": "Название компании",
+        "home.company_name_placeholder": "Например, GrandPharm",
+        "home.industry_label": "Сфера деятельности",
+        "home.industry_choose": "Выберите сферу…",
+        "home.industry_hint": "Подберём типовые должности и подразделения для этой сферы.",
+        "home.role_label": "Кем вы являетесь в компании?",
+        "home.role_choose": "Выберите роль…",
+        "home.submit": "Сохранить и продолжить",
+        "industry.retail": "Розница и торговля", "industry.food": "Общепит и HoReCa", "industry.it": "IT и услуги",
+        "industry.manuf": "Производство", "industry.edu": "Образование", "industry.health": "Медицина", "industry.other": "Другое",
+        "role.owner": "Владелец бизнеса", "role.hr": "HR-менеджер", "role.lead": "Руководитель отдела", "role.fin": "Бухгалтер / финансы",
+    },
+    "uz": {
+        "menu.kadry": "Kadrlar", "menu.poseshcheniya": "Tashriflar", "menu.smeny": "Smenalarni boshqarish",
+        "menu.zarplata": "Ish haqi", "menu.otchetnost": "Hisobotlar", "menu.nastroyki": "Sozlamalar",
+        "menu.col.glavnoe": "Asosiy", "menu.col.organizatsiya": "Tashkilot", "menu.col.dashboard": "Boshqaruv paneli",
+        "menu.col.administrirovanie": "Administrator", "menu.col.spravochniki": "Ma'lumotnomalar",
+        "menu.sotrudniki": "Xodimlar", "menu.podrazdeleniya": "Bo'limlar", "menu.torg_tochki": "Savdo nuqtalari",
+        "menu.dolzhnosti": "Lavozimlar", "menu.div_stats": "Bo'limlar statistikasi",
+        "menu.report_queue": "Hisobotlar navbati", "menu.year_summary": "Yil natijalari",
+        "menu.grafiki_raboty": "Ish grafiklari", "menu.otsutstvie": "Yo'qlik so'rovlari",
+        "menu.izm_grafika": "Grafikni o'zgartirish so'rovlari", "menu.zapros_lokatsiya": "Lokatsiya so'rovlari",
+        "menu.sverhurochnye_zapros": "Qo'shimcha ish so'rovlari", "menu.zapros_otmetki": "Belgilar so'rovlari",
+        "menu.sverhurochnye": "Qo'shimcha ish", "menu.lokatsii": "Lokatsiyalar", "menu.ustroystva": "Qurilmalar",
+        "menu.otmetki": "Belgilar", "menu.indiv_grafiki": "Individual grafiklar", "menu.raspisaniya": "Jadvallar",
+        "menu.izm_raspisaniya": "Jadvalni o'zgartirish so'rovlari",
+        "menu.shablony_smen": "Smena shablonlari", "menu.naznachenie_smen": "Smena tayinlash",
+        "menu.nachisleniya": "Hisoblashlar", "menu.vedomosti": "Vedomostlar", "menu.vyplaty": "To'lovlar",
+        "menu.otchet_chasy": "Soatlar hisoboti", "menu.otchet_zarplata": "Ish haqi hisoboti",
+        "menu.polzovateli": "Foydalanuvchilar", "menu.roli": "Rollar", "menu.spravochniki": "Ma'lumotnomalar",
+        "menu.regiony": "Hududlar", "menu.banki": "Banklar",
+
+        "tour.title": "Verifix sozlamalari", "tour.collapse": "Yopish", "tour.expand": "To'liq ro'yxatni ochish",
+        "tour.now": "Hozir:", "tour.next": "Keyingisi →", "tour.waiting": "Sahifada bajarilishini kutmoqdamiz…",
+        "tour.notfound": "Ekranda element topilmadi — selektor stendga moslashtiriladi.",
+        "tour.open_screen": "Ekranni ochish", "tour.yes": "Ha", "tour.no": "Yo'q",
+        "tour.start_over": "↺ Boshidan boshlash",
+        "tour.start_over_confirm": "Ushbu sandbox'ning barcha ma'lumotlari (bo'limlar, xodimlar va h.k.) o'chirilib, sozlash birinchi qadamdan boshlansinmi?",
+        "tour.next_callout": "Bu «Keyingisi» tugmasi — u har doim ekranning shu burchagida bo'ladi va tayyor bo'lganingizda keyingi qadamga o'tkazadi.",
+        "tour.next_callout_ok": "Tushunarli",
+        "tour.done": "Sozlash yakunlandi!",
+        "lang.switch_ru": "RU", "lang.switch_uz": "UZ",
+        "intro.title": "Verifix sinov maydoniga xush kelibsiz",
+        "intro.text": "Bu — interfeysning o'quv nusxasi: bu yerda haqiqiy ma'lumotlarni buzish xavfisiz sozlashni mashq qilish mumkin. Kompaniya haqida bir nechta savoldan boshlaymiz, keyin esa bosqichma-bosqich — bo'limlardan tortib ishlangan soatlar bo'yicha birinchi hisobotgacha olib boramiz.",
+        "intro.cta": "Sozlashni boshlash",
+
+        "page.home": "Bosh sahifa", "page.divisions": "Bo'limlar", "page.positions": "Lavozimlar",
+        "page.locations": "Lokatsiyalar", "page.schedules": "Ish grafiklari", "page.employees": "Xodimlar",
+        "page.users": "Foydalanuvchilar", "page.attendance": "Belgilar", "page.report": "Tashriflar hisoboti",
+        "stub.text": "Bu bo'lim — mock-stend navigatsiya zaglushkasi: haqiqiy Verifix'da bu yerda alohida ekran borligini ko'rsatadi, lekin funksionallik bu yerga ko'chirilmagan (u ushbu tur ishlab chiqadigan stsenariylar uchun kerak emas).",
+
+        # --- Шаги тура (steps.js) ---
+        "step.company.title": "Kompaniya haqida ma'lumot bering",
+        "step.company.why": "Nomi, faoliyat sohasi va sizning rolingiz — shular asosida sohangiz uchun odatiy bo'limlar va lavozimlar tanlanadi.",
+        "step.company.emptyWarning": "Kompaniya nomi, faoliyat sohasi va rolingizni to'ldiring — bularsiz davom etib bo'lmaydi.",
+
+        "step.locations.title": "Lokatsiya qo'shing",
+        "step.locations.why": "Xodim kelish/ketishni belgilaydigan joy.",
+        "step.locations.emptyWarning": "Lokatsiya — xodim kelish/ketishni belgilaydigan joy. Bo'lmasa, jismonan belgi qo'yishga joy bo'lmaydi.",
+
+        "step.divisions.title": "Bo'limlarni yarating",
+        "step.divisions.why": "Kompaniyaning tashkiliy tuzilishi. Xodimlar bo'limlarga bog'lanadi.",
+        "step.divisions.emptyWarning": "Bo'limlar — kompaniya tuzilishi (sex, zal, ofis). Hech bo'lmaganda bittasi bo'lmasa, keyingi qadamlarda xodimlarni bog'lashga hech narsa bo'lmaydi.",
+
+        "step.positions.title": "Lavozimlarni kiriting",
+        "step.positions.why": "Lavozim xodim kim bo'lib ishlashini belgilaydi.",
+        "step.positions.emptyWarning": "Lavozim — xodim kim bo'lib ishlashini bildiradi (masalan, «Ofitsiant»). Bo'lmasa, xodim qo'shib bo'lmaydi.",
+
+        "step.schedules.title": "Ish grafigini yarating",
+        "step.schedules.why": "Xodimlarga tayinlanadigan ish vaqti qoidalari.",
+        "step.schedules.emptyWarning": "Grafik xodim qachon ishda bo'lishi kerakligini belgilaydi. Bo'lmasa, tizim kechikish yoki qo'shimcha ishlashni tushunmaydi.",
+
+        "step.employees.title": "Xodim qo'shing",
+        "step.employees.why": "Bo'lim, lavozim va grafikni bitta xodimga bog'lang — lokatsiyani keyingi alohida qadamda biriktiramiz.",
+        "step.employees.emptyWarning": "Xodim — belgi qo'yadigan va ish haqi oladigan shaxs. Bo'lmasa, qolgan qadamlar (taklif, belgi, hisobot) ma'nosiz bo'ladi.",
+
+        "step.attach_employee.title": "Xodimni lokatsiyaga biriktiring",
+        "step.attach_employee.why": "ANIQ bir xodimni (yuqoridagi bo'lim kartochkasi ichidagi avatar) lokatsiya doirasiga tortib olib boring — faqat u biriktiriladi. Bir kishi bir vaqtning o'zida bir nechta lokatsiyaga biriktirilishi mumkin.",
+        "step.attach_employee.emptyWarning": "Hozircha birorta xodim biror lokatsiyaga biriktirilmagan — bo'lmasa, aniq nuqta bo'yicha hisobotni hisoblashga hech narsa bo'lmaydi.",
+
+        "step.attach_division.title": "BUTUN bo'limni lokatsiyaga biriktiring",
+        "step.attach_division.why": "Bo'lim kartochkasining qorong'i SARLAVHASINI (alohida xodimni emas) lokatsiya doirasiga tortib olib boring — bu bo'limning BARCHA xodimlari BIRDANIGA biriktiriladi (kompaniyaning ildiz tugunini tortib, butun kompaniyani ham biriktirish mumkin).",
+        "step.attach_division.emptyWarning": "Bu bitta xodimni biriktirishdan alohida harakat — aynan bo'lim kartochkasining sarlavhasini butunlay tortib ko'ring.",
+        "step.attach_division.confirm": "Barcha xodimlarga lokatsiya biriktirilmagan. Bu shuni anglatadiki, ushbu xodimlar ish joyida belgi qo'yganiga 100% ishonch hosil qila olmaysiz. Davom etishga ishonchingiz komilmi?",
+
+        "step.invite.title": "Xodimni ilovaga taklif qiling",
+        "step.invite.why": "Haqiqiy Verifix'dagidek: telefon + taklif. Bo'lmasa, xodimning belgi qo'yishga imkoni yo'q.",
+        "step.invite.emptyWarning": "Barcha xodimlar taklif qilinmagan — taklifsiz ularda ilovaga kirish imkoni bo'lmaydi, demak, jismonan belgi qo'yishning iloji yo'q.",
+
+        "step.attendance.title": "Tashrif belgilarini ko'ring",
+        "step.attendance.why": "Bu yerda qo'shilgan xodimlarning kelish/ketish belgilari ko'rinadi. Hali hech kim belgi qo'ymagan bo'lsa — ro'yxat bo'sh, bu normal holat: qadam shunchaki qayerga qarash kerakligini ko'rsatadi, harakat shart emas.",
+        "step.attendance.doneHint": "Bu yerda xodimlarning kelish/ketish belgilari ko'rinadi — agar hali hech kim belgi qo'ymagan bo'lsa, ro'yxat bo'sh bo'lishi mumkin. Ko'rib chiqqach — «Keyingisi» tugmasini bosing.",
+
+        "step.report.title": "Tashriflar hisobotini ko'ring",
+        "step.report.why": "Ishlangan soatlar hisoboti — haqiqiy Verifix'dagidek formatda. Agar hali belgilar bo'lmasa, hisobot bo'sh bo'ladi, bu ham normal holat.",
+        "step.report.doneHint": "Ishlangan soatlar hisoboti — haqiqiy Verifix'dagidek. Agar hali belgilar bo'lmasa, bo'sh — bu normal holat.",
+
+        # --- Профиль компании (home.html) ---
+        "home.title": "Kompaniya haqida ma'lumot bering",
+        "home.subtitle": "Bu ma'lumotlar sohangiz uchun odatiy bo'limlar va lavozimlarni tanlaydi — hammasini noldan kiritishga hojat qolmaydi.",
+        "home.company_name": "Kompaniya nomi",
+        "home.company_name_placeholder": "Masalan, GrandPharm",
+        "home.industry_label": "Faoliyat sohasi",
+        "home.industry_choose": "Sohani tanlang…",
+        "home.industry_hint": "Ushbu soha uchun odatiy lavozim va bo'limlarni tanlaymiz.",
+        "home.role_label": "Kompaniyada kim bo'lasiz?",
+        "home.role_choose": "Rolni tanlang…",
+        "home.submit": "Saqlash va davom etish",
+        "industry.retail": "Chakana va savdo", "industry.food": "Umumiy ovqatlanish va HoReCa", "industry.it": "IT va xizmatlar",
+        "industry.manuf": "Ishlab chiqarish", "industry.edu": "Ta'lim", "industry.health": "Tibbiyot", "industry.other": "Boshqa",
+        "role.owner": "Biznes egasi", "role.hr": "HR-menejer", "role.lead": "Bo'lim rahbari", "role.fin": "Buxgalter / moliya",
+
+        "common.delete": "O'chirish", "common.save_error": "Saqlab bo'lmadi — aloqani tekshirib, qayta urinib ko'ring.",
+        "common.top_level_option": "— yuqori daraja —",
+
+        "div_page.title": "Bo'limlar",
+        "div_page.subtitle": "Bo'limlarni bir-biriga joylashtirish mumkin — qatorni boshqasiga sudrab olib boring.",
+        "div_page.make_root": "↥ eng yuqori daraja qilish",
+        "div_page.parent_label": "Ota bo'lim:",
+        "div_page.parent_aria": "«{name}» uchun ota bo'lim (drag-and-drop muqobili)",
+        "div_page.delete_confirm": "«{name}» o'chirilsinmi? Bola bo'limlar (agar bo'lsa) bir daraja yuqoriga qayta bog'lanadi.",
+        "div_page.empty": "Hali qo'shilmagan",
+        "div_page.dnd_hint": "Qatorni sichqoncha bilan boshqasiga tortib olib boring — yoki yonidagi ro'yxatdan ota bo'limni tanlang (drag-and-drop'ning klaviatura muqobili).",
+        "div_page.suggestions_label": "Sohangiz uchun odatiy:",
+        "div_page.name_label": "Bo'limingiz qanday nomlanadi",
+        "div_page.name_placeholder": "Oshxona",
+        "div_page.parent_field_label": "U qaysi bo'limga bo'ysunadi (ixtiyoriy)",
+        "div_page.submit": "+ Bo'lim qo'shish",
+        "div_page.reparent_error": "Bo'limni ko'chirib bo'lmadi",
+
+        "common.empty": "Hali qo'shilmagan", "common.suggestions_label": "Sohangiz uchun odatiy:",
+        "common.name_col": "Nomi",
+
+        "job_page.title": "Lavozimlar",
+        "job_page.subtitle": "Xodim kim bo'lib ishlaydi (Ofitsiant, Oshpaz, Barista…).",
+        "job_page.delete_confirm": "«{name}» lavozimi o'chirilsinmi?",
+        "job_page.name_label": "Lavozim nomi",
+        "job_page.name_placeholder": "Ofitsiant",
+        "job_page.submit": "+ Lavozim qo'shish",
+
+        "weekday.mon": "Du", "weekday.tue": "Se", "weekday.wed": "Cho", "weekday.thu": "Pay",
+        "weekday.fri": "Ju", "weekday.sat": "Sha", "weekday.sun": "Yak",
+
+        "sch_page.title": "Ish grafiklari",
+        "sch_page.subtitle": "Xodimlarga tayinlanadigan ish vaqti qoidalari.",
+        "sch_page.kind_col": "Turi", "sch_page.details_col": "Tafsilotlar",
+        "sch_page.kind_regular": "Oddiy", "sch_page.kind_hourly": "Soatlik",
+        "sch_page.days_per_week": "{days} kun/hafta", "sch_page.norm_label": "norma {hours} soat",
+        "sch_page.delete_confirm": "«{name}» grafigi o'chirilsinmi?",
+        "sch_page.template_label": "Shablon",
+        "sch_page.tpl_5_2": "Besh kunlik (5/2, 9:00–18:00)", "sch_page.tpl_6_1": "Olti kunlik (6/1, 9:00–18:00)",
+        "sch_page.tpl_hourly": "Soatlik (norma 12 soat)", "sch_page.tpl_custom": "Maxsus",
+        "sch_page.name_label": "Grafik nomi", "sch_page.name_placeholder": "Kunduzgi smena 9–18",
+        "sch_page.workdays_legend": "Ish kunlari",
+        "sch_page.start_label": "Boshlanishi", "sch_page.end_label": "Tugashi",
+        "sch_page.norm_hours_label": "Soatlar normasi",
+        "sch_page.submit": "+ Grafik qo'shish",
+
+        "loc_page.title": "Lokatsiyalar",
+        "loc_page.subtitle": "Xodimlar kelish va ketishni belgilaydigan joy (xaritadagi nuqta atrofidagi zona).",
+        "loc_page.address_col": "Manzil", "loc_page.radius_col": "Zona radiusi, m",
+        "loc_page.delete_confirm": "«{name}» lokatsiyasi o'chirilsinmi?",
+        "loc_page.name_label": "Lokatsiyangiz qanday nomlanadi", "loc_page.name_placeholder": "Mustaqillikdagi kafe",
+        "loc_page.address_label": "Lokatsiyangiz qaysi manzilda joylashgan. Manzil orqali GPS koordinatalarini aniqlaymiz",
+        "loc_page.address_placeholder": "Manzilni kiriting va «Topish»ni bosing", "loc_page.find_btn": "Topish",
+        "loc_page.coords_empty": "Koordinatalar tanlanmagan — manzilni kiriting yoki xaritada bosing.",
+        "loc_page.coords_selected": "Koordinatalar: {lat}, {lng}",
+        "loc_page.radius_label": "Zona radiusi, m",
+        "loc_page.submit": "+ Lokatsiya qo'shish",
+        "loc_page.address_not_found": "Manzil topilmadi — so'rovni aniqlashtiring yoki xaritada nuqtani qo'lda bosing.",
+        "loc_page.geocode_error": "Geokodlash xatosi — keyinroq urinib ko'ring yoki xaritada nuqtani qo'lda bosing.",
+        "loc_page.pick_point_first": "Avval xaritada nuqtani tanlang yoki manzilni toping.",
+
+        "emp_page.title": "Xodimlar",
+        "emp_page.subtitle": "Xodimni bo'lim, lavozim, grafik va telefon bilan bog'lang — bularsiz u kelishini belgilay olmaydi va taklif ololmaydi.",
+        "emp_page.fio_col": "F.I.Sh.", "emp_page.division_col": "Bo'lim", "emp_page.position_col": "Lavozim",
+        "emp_page.schedule_col": "Grafik", "emp_page.location_col": "Lokatsiya",
+        "emp_page.no_locations": "Hali lokatsiyalar yo'q",
+        "emp_page.delete_confirm": "«{name}» xodimi o'chirilsinmi?",
+        "emp_page.fio_label": "F.I.Sh.", "emp_page.fio_placeholder": "Ivanov Ivan",
+        "emp_page.division_label": "Bo'lim", "emp_page.position_label": "Lavozim", "emp_page.schedule_label": "Grafik",
+        "emp_page.phone_label": "Telefon raqami", "emp_page.phone_placeholder": "+998 90 123 45 67",
+        "emp_page.location_hint": "Lokatsiyani (bir nechtasi mumkin) yaratgandan keyin biriktiring — xodimni o'ng paneldagi lokatsiyaga tortib olib boring, yoki yuqoridagi ro'yxatdan tanlang.",
+        "emp_page.submit": "+ Xodim qo'shish",
+        "emp_page.sync_error": "Lokatsiyalarni saqlab bo'lmadi",
+
+        "users_page.title": "Foydalanuvchilar",
+        "users_page.subtitle": "Xodimni belgilar ilovasiga taklif qilish — haqiqiy Verifix'dagidek (Sozlamalar → Administrator → Foydalanuvchilar → «Telefon + invite» tugmasi).",
+        "users_page.phone_col": "Telefon", "users_page.status_col": "Holat",
+        "users_page.phone_aria": "{name} xodimining telefoni",
+        "users_page.invite_title": "Taklif yuborish uchun telefonni to'ldiring",
+        "users_page.invite_btn": "Taklif qilish",
+        "users_page.status_none": "Taklif qilinmagan", "users_page.status_invited": "Taklif qilingan",
+        "users_page.empty": "Avval «Kadrlar → Xodimlar» bo'limida xodimlarni qo'shing",
+        "users_page.hint": "Xodim SMS oladi va ilovada taklifni o'zi tasdiqlaydi.",
+
+        "am_page.title": "Belgilar",
+        "am_page.subtitle": "Kelish/ketish belgilari ro'yxati — haqiqiy Verifix'dagidek, bu ko'rish uchun sahifa: belgilar qurilma/ilovadan keladi, bu yerda ularni qo'lda yaratilmaydi.",
+        "am_page.person_col": "Jismoniy shaxs", "am_page.location_col": "Lokatsiya",
+        "am_page.kind_col": "Belgi turi", "am_page.date_col": "Yaratilgan sana",
+        "am_page.kind_in": "Kelish", "am_page.kind_out": "Ketish",
+        "am_page.empty": "Hozircha belgilar yo'q — xodimlar Verifix ID ilovasida belgilana boshlashi bilan bu yerda paydo bo'ladi.",
+
+        "rep_page.title": "Tashriflar hisoboti",
+        "rep_page.period": "Davr: {start} – {end}. Faqat haqiqiy belgilar ko'rsatilgan — agar ular hali bo'lmasa, katakchalar bo'sh, bu normal holat.",
+        "rep_page.total_col": "Jami", "rep_page.day_off": "D", "rep_page.hour_suffix": "s",
+        "rep_page.empty": "Hozircha xodimlar yo'q",
+
+        "err.company_name_empty": "Kompaniya nomi bo'sh bo'lishi mumkin emas.",
+        "err.company_industry_required": "Ro'yxatdan faoliyat sohasini tanlang.",
+        "err.company_role_required": "Kompaniyada kim ekanligingizni tanlang.",
+        "err.division_name_empty": "Bo'lim nomi bo'sh bo'lishi mumkin emas.",
+        "err.position_name_empty": "Lavozim nomi bo'sh bo'lishi mumkin emas.",
+        "err.location_name_empty": "Lokatsiya nomi bo'sh bo'lishi mumkin emas.",
+        "err.location_coords_invalid": "Koordinatalarni aniqlab bo'lmadi — xarita ulgurmagan bo'lishi mumkin. Xaritada nuqtani bosing yoki manzilni qayta toping.",
+        "err.location_radius_not_number": "Zona radiusi son bo'lishi kerak.",
+        "err.location_radius_positive": "Zona radiusi noldan katta bo'lishi kerak.",
+        "err.schedule_name_empty": "Grafik nomi bo'sh bo'lishi mumkin emas.",
+        "err.schedule_kind_unknown": "Grafik turi noma'lum.",
+        "err.schedule_no_workdays": "Oddiy grafikda kamida bitta ish kuni bo'lishi kerak.",
+        "err.schedule_bad_weekday": "Hafta kuni noto'g'ri.",
+        "err.schedule_weekday_range": "Hafta kuni 1 (dushanba) dan 7 (yakshanba) gacha bo'lishi kerak.",
+        "err.schedule_times_required": "Ish kunining boshlanishi va tugashini ko'rsating.",
+        "err.schedule_end_before_start": "Ish kunining tugashi boshlanishidan keyin bo'lishi kerak (yarim tunni kesib o'tadigan tungi smenalar — alohida holat, bu yerda qo'llab-quvvatlanmaydi).",
+        "err.schedule_norm_positive": "Soatlar normasi noldan katta bo'lishi kerak.",
+        "err.employee_name_empty": "Xodim F.I.Sh. bo'sh bo'lishi mumkin emas.",
+        "err.employee_fields_required": "Bo'lim, lavozim, grafik va telefonni to'ldiring. Lokatsiyani keyinroq biriktirish mumkin — xodimni o'ng paneldagi lokatsiyaga tortib olib boring.",
+        "err.user_phone_empty": "Telefon raqami bo'sh bo'lishi mumkin emas.",
+    },
+}
+
+
+def t(key: str, **kwargs) -> str:
+    lang = current_lang.get()
+    text = TRANSLATIONS.get(lang, {}).get(key) or TRANSLATIONS["ru"].get(key, key)
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except (KeyError, IndexError):
+            pass
+    return text
+
+templates.env.globals["t"] = t
 
 
 class OrgSessionMiddleware(BaseHTTPMiddleware):
@@ -132,6 +611,15 @@ class OrgSessionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if path.startswith("/static/") or path == "/favicon.ico":
             return await call_next(request)
+
+        # Локализация (запрос Vladimir): язык — тоже cookie, читаем его
+        # здесь же в contextvar, чтобы t() работала из любого места
+        # (шаблоны, helper-функции) без протаскивания lang через каждый
+        # base_ctx() вручную. См. current_lang/t() выше.
+        lang = request.cookies.get(LANG_COOKIE_NAME, "ru")
+        if lang not in ("ru", "uz"):
+            lang = "ru"
+        lang_token = current_lang.set(lang)
 
         db = SessionLocal()
         token = request.cookies.get(COOKIE_NAME)
@@ -147,10 +635,12 @@ class OrgSessionMiddleware(BaseHTTPMiddleware):
         org_token = org.token  # снимаем до db.close() — после close объект expired, атрибут не читается
         request.state.db = db
         request.state.org = org
+        request.state.lang = lang
         try:
             response = await call_next(request)
         finally:
             db.close()
+            current_lang.reset(lang_token)
 
         if created:
             response.set_cookie(COOKIE_NAME, org_token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 365)
@@ -158,6 +648,18 @@ class OrgSessionMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(OrgSessionMiddleware)
+
+
+@app.get("/set-lang/{lang}")
+def set_lang(request: Request, lang: str):
+    """Переключатель языка (см. запрос Vladimir) — cookie на год, редирект
+    обратно на ту же страницу (Referer), не всегда на "/"."""
+    if lang not in ("ru", "uz"):
+        lang = "ru"
+    back_to = request.headers.get("referer") or "/"
+    response = RedirectResponse(url=back_to, status_code=303)
+    response.set_cookie(LANG_COOKIE_NAME, lang, max_age=60 * 60 * 24 * 365, samesite="lax")
+    return response
 
 
 # На время активной разработки — без этого браузер может закешировать
@@ -305,15 +807,15 @@ def employees_word(n: int) -> str:
     return "сотрудников"
 
 
-WEEKDAY_SHORT = {1: "Пн", 2: "Вт", 3: "Ср", 4: "Чт", 5: "Пт", 6: "Сб", 7: "Вс"}
+WEEKDAY_KEYS = {1: "weekday.mon", 2: "weekday.tue", 3: "weekday.wed", 4: "weekday.thu", 5: "weekday.fri", 6: "weekday.sat", 7: "weekday.sun"}
 
 
 def schedule_summary(s) -> str:
     """Компактная строка для панели (CPO: "лаконично") — не карточка,
-    просто одна строка на график."""
+    просто одна строка на график. Локализована (см. WEEKDAY_KEYS/t())."""
     if s.kind == "hourly":
-        return f"почасовой, норма {s.norm_hours or 0:g} ч"
-    days = "".join(WEEKDAY_SHORT.get(d, "") for d in (s.week_days or []))
+        return t("sch_page.norm_label", hours=f"{s.norm_hours or 0:g}")
+    days = "".join(t(WEEKDAY_KEYS[d]) for d in (s.week_days or []) if d in WEEKDAY_KEYS)
     return f"{s.start_time or '—'}–{s.end_time or '—'}, {days or '—'}"
 
 
@@ -390,6 +892,10 @@ def base_ctx(request: Request, page_title: str):
         "has_unattached_employees": has_unattached_employees,
         "has_uninvited_employees": has_uninvited_employees,
         "has_any_invited": has_any_invited,
+        "lang": current_lang.get(),
+        # Для JS (verifix-tour.js/steps.js) — тот же словарь целиком, для
+        # ТЕКУЩЕГО языка, сериализованный в base.html через |tojson.
+        "i18n_json": TRANSLATIONS.get(current_lang.get(), TRANSLATIONS["ru"]),
     }
 
 
@@ -417,7 +923,7 @@ def redirect_with_error(path: str, message: str) -> RedirectResponse:
 def root(request: Request):
     log_event(request, "page_view")
     org = request.state.org
-    ctx = base_ctx(request, "Главная")
+    ctx = base_ctx(request, "page.home")
     ctx.update(
         industries=INDUSTRIES,
         admin_roles=ADMIN_ROLES,
@@ -436,11 +942,11 @@ def save_company(
     admin_role: str = Form(""),
 ):
     if not company_name.strip():
-        return redirect_with_error("/", "Название компании не может быть пустым.")
+        return redirect_with_error("/", t('err.company_name_empty'))
     if industry not in dict(INDUSTRIES):
-        return redirect_with_error("/", "Выберите сферу деятельности из списка.")
+        return redirect_with_error("/", t('err.company_industry_required'))
     if admin_role not in dict(ADMIN_ROLES):
-        return redirect_with_error("/", "Выберите, кем вы являетесь в компании.")
+        return redirect_with_error("/", t('err.company_role_required'))
 
     db = request.state.db
     org = request.state.org
@@ -531,7 +1037,7 @@ def division_list(request: Request):
     existing_names = {d.name.lower() for d in divisions}
     suggestions = [s for s in DIVISION_SUGGESTIONS.get(org.industry or "other", []) if s.lower() not in existing_names]
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Подразделения")
+    ctx = base_ctx(request, "page.divisions")
     ctx.update(
         divisions=divisions,
         ordered=_ordered_divisions(divisions),
@@ -543,7 +1049,7 @@ def division_list(request: Request):
 @app.post("/vhr/hrm/division_list/create")
 def division_create(request: Request, name: str = Form(""), parent_id: str = Form("")):
     if not name.strip():
-        return redirect_with_error("/vhr/hrm/division_list", "Название подразделения не может быть пустым.")
+        return redirect_with_error("/vhr/hrm/division_list", t('err.division_name_empty'))
     db = request.state.db
     org = request.state.org
     d = Division(organization_id=org.id, name=name.strip(), parent_id=parent_id or None)
@@ -609,7 +1115,7 @@ def job_list(request: Request):
     existing_names = {p.name.lower() for p in positions}
     suggestions = [s for s in POSITION_SUGGESTIONS.get(org.industry or "other", []) if s.lower() not in existing_names]
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Должности")
+    ctx = base_ctx(request, "page.positions")
     ctx.update(positions=positions, suggestions=suggestions)
     return templates.TemplateResponse(request, "job_list.html", ctx)
 
@@ -617,7 +1123,7 @@ def job_list(request: Request):
 @app.post("/vhr/hrm/job_list/create")
 def job_create(request: Request, name: str = Form("")):
     if not name.strip():
-        return redirect_with_error("/vhr/hrm/job_list", "Название должности не может быть пустым.")
+        return redirect_with_error("/vhr/hrm/job_list", t('err.position_name_empty'))
     db = request.state.db
     org = request.state.org
     p = Position(organization_id=org.id, name=name.strip())
@@ -649,7 +1155,7 @@ def location_list(request: Request):
     org = request.state.org
     locations = db.query(Location).filter_by(organization_id=org.id).all()
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Локации")
+    ctx = base_ctx(request, "page.locations")
     ctx.update(locations=locations)
     return templates.TemplateResponse(request, "location_list.html", ctx)
 
@@ -657,7 +1163,7 @@ def location_list(request: Request):
 @app.post("/vhr/htt/location_list/create")
 def location_create(request: Request, name: str = Form(""), lat: str = Form(""), lng: str = Form(""), accuracy: str = Form("50"), address: str = Form("")):
     if not name.strip():
-        return redirect_with_error("/vhr/htt/location_list", "Название локации не может быть пустым.")
+        return redirect_with_error("/vhr/htt/location_list", t('err.location_name_empty'))
     # QA H2: lat/lng были float = Form(...) (обязательные) — если карта
     # не прогрузилась (сеть/Leaflet не успел инициализироваться), скрытые
     # поля уходят пустыми, и это падало в сырой 422 (Field required) вместо
@@ -670,16 +1176,16 @@ def location_create(request: Request, name: str = Form(""), lat: str = Form(""),
     except ValueError:
         return redirect_with_error(
             "/vhr/htt/location_list",
-            "Не удалось определить координаты — карта могла не успеть загрузиться. Кликните точку на карте или найдите адрес заново."
+            t('err.location_coords_invalid')
         )
     # QA L1: accuracy тоже был типизирован как float = Form(50) — тот же
     # класс проблемы (сырой 422 на нечисловом крафте), а не просто "min=1".
     try:
         accuracy_val = float(accuracy)
     except ValueError:
-        return redirect_with_error("/vhr/htt/location_list", "Радиус зоны отметок должен быть числом.")
+        return redirect_with_error("/vhr/htt/location_list", t('err.location_radius_not_number'))
     if accuracy_val <= 0:
-        return redirect_with_error("/vhr/htt/location_list", "Радиус зоны отметок должен быть больше нуля.")
+        return redirect_with_error("/vhr/htt/location_list", t('err.location_radius_positive'))
     db = request.state.db
     org = request.state.org
     l = Location(organization_id=org.id, name=name.strip(), address=address, lat=lat_val, lng=lng_val, accuracy=accuracy_val)
@@ -715,7 +1221,7 @@ def schedule_list(request: Request):
     org = request.state.org
     schedules = db.query(Schedule).filter_by(organization_id=org.id).all()
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Графики работы")
+    ctx = base_ctx(request, "page.schedules")
     ctx.update(schedules=schedules)
     return templates.TemplateResponse(request, "schedule_list.html", ctx)
 
@@ -731,26 +1237,26 @@ def schedule_create(
     norm_hours: str = Form(""),
 ):
     if not name.strip():
-        return redirect_with_error("/vhr/htt/schedule_list", "Название графика не может быть пустым.")
+        return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_name_empty'))
     if kind not in ("regular", "hourly"):
-        return redirect_with_error("/vhr/htt/schedule_list", "Неизвестный вид графика.")
+        return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_kind_unknown'))
 
     if kind == "regular":
         if not week_days:
-            return redirect_with_error("/vhr/htt/schedule_list", "У обычного графика должен быть хотя бы один рабочий день.")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_no_workdays'))
         # QA L1: int(d) без защиты падал в 500 на нечисловом крафте, и не было
         # проверки диапазона 1–7 (дни недели) — валидный HTML-чекбокс всегда
         # шлёт "1".."7", но эндпоинт не должен ронять сервер на произвольном вводе.
         try:
             week_days_int = sorted(set(int(d) for d in week_days))
         except ValueError:
-            return redirect_with_error("/vhr/htt/schedule_list", "Некорректный день недели.")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_bad_weekday'))
         if any(d < 1 or d > 7 for d in week_days_int):
-            return redirect_with_error("/vhr/htt/schedule_list", "День недели должен быть от 1 (понедельник) до 7 (воскресенье).")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_weekday_range'))
         if not start_time or not end_time:
-            return redirect_with_error("/vhr/htt/schedule_list", "Укажите начало и конец рабочего дня.")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_times_required'))
         if start_time >= end_time:
-            return redirect_with_error("/vhr/htt/schedule_list", "Конец рабочего дня должен быть позже начала (ночные смены через полночь — отдельный случай, здесь не поддержан).")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_end_before_start'))
 
     if kind == "hourly":
         try:
@@ -758,7 +1264,7 @@ def schedule_create(
         except ValueError:
             norm_val = 0
         if norm_val <= 0:
-            return redirect_with_error("/vhr/htt/schedule_list", "Норма часов должна быть больше нуля.")
+            return redirect_with_error("/vhr/htt/schedule_list", t('err.schedule_norm_positive'))
 
     db = request.state.db
     org = request.state.org
@@ -801,7 +1307,7 @@ def employee_list(request: Request):
     schedules = db.query(Schedule).filter_by(organization_id=org.id).all()
     locations = db.query(Location).filter_by(organization_id=org.id).all()
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Сотрудники")
+    ctx = base_ctx(request, "page.employees")
     ctx.update(employees=employees, divisions=divisions, positions=positions, schedules=schedules, locations=locations)
     return templates.TemplateResponse(request, "employee_list.html", ctx)
 
@@ -823,7 +1329,7 @@ def employee_create(
     # единственное место назначения — панель справа (drag-and-drop или
     # мультиселект в списке сотрудников), не форма создания.
     if not full_name.strip():
-        return redirect_with_error("/vhr/href/employee", "ФИО сотрудника не может быть пустым.")
+        return redirect_with_error("/vhr/href/employee", t('err.employee_name_empty'))
     # Уточнение Vladimir (health check при создании): телефон тоже стал
     # обязательным наряду с подразделением/должностью/графиком — раньше
     # был необязательным, теперь требуется сразу, иначе позже пришлось бы
@@ -831,7 +1337,7 @@ def employee_create(
     if not (division_id and position_id and schedule_id and phone.strip()):
         return redirect_with_error(
             "/vhr/href/employee",
-            "Заполните подразделение, должность, график и телефон. Локацию можно прикрепить позже — перетащите сотрудника на неё в панели справа."
+            t('err.employee_fields_required')
         )
     db = request.state.db
     org = request.state.org
@@ -1049,7 +1555,7 @@ def users_list(request: Request):
     org = request.state.org
     employees = db.query(Employee).filter_by(organization_id=org.id).all()
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Пользователи")
+    ctx = base_ctx(request, "page.users")
     ctx.update(employees=employees)
     return templates.TemplateResponse(request, "users_list.html", ctx)
 
@@ -1057,7 +1563,7 @@ def users_list(request: Request):
 @app.post("/vhr/admin/users/{employee_id}/invite")
 def users_invite(request: Request, employee_id: str, phone: str = Form("")):
     if not phone.strip():
-        return redirect_with_error("/vhr/admin/users", "Номер телефона не может быть пустым.")
+        return redirect_with_error("/vhr/admin/users", t('err.user_phone_empty'))
     db = request.state.db
     org = request.state.org
     emp = db.query(Employee).filter_by(id=employee_id, organization_id=org.id).first()
@@ -1105,7 +1611,7 @@ def attendance_mark_page(request: Request):
         .all()
     )
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Отметки")
+    ctx = base_ctx(request, "page.attendance")
     # По запросу Vladimir (со скринами реального Verifix): убрана форма
     # ручного создания отметки — в реальном Verifix эта страница ЧИСТО
     # просмотровая (отметки приходят от устройств/приложения, не через
@@ -1181,7 +1687,7 @@ def timesheet_report(request: Request):
         })
 
     log_event(request, "page_view")
-    ctx = base_ctx(request, "Отчёт по посещениям")
+    ctx = base_ctx(request, "page.report")
     # Тоже реальные данные, тоже во весь экран (см. attendance_mark_page).
     ctx.update(rows=rows, period_days=period_days, period_start=period_start, period_end=today_local, hide_org_panel=True)
     return templates.TemplateResponse(request, "timesheet_report.html", ctx)

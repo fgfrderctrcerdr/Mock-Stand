@@ -4,37 +4,37 @@
 <div data-company-set="1" style="display:none"></div>
 {% endif %}
 <div class="page">
-  <h1 class="page__title">Расскажите о компании</h1>
-  <p class="page__subtitle">Эти данные подберут типовые подразделения и должности под вашу сферу — не придётся заводить всё с нуля.</p>
+  <h1 class="page__title">{{ t('home.title') }}</h1>
+  <p class="page__subtitle">{{ t('home.subtitle') }}</p>
 
   <form method="post" action="/" class="entity-form">
     <div class="field">
-      <label for="companyName">Название компании</label>
-      <input type="text" id="companyName" name="company_name" required placeholder="Например, GrandPharm" value="{{ company_name }}" />
+      <label for="companyName">{{ t('home.company_name') }}</label>
+      <input type="text" id="companyName" name="company_name" required placeholder="{{ t('home.company_name_placeholder') }}" value="{{ company_name }}" />
     </div>
 
     <div class="field">
-      <label for="companyIndustry">Сфера деятельности</label>
+      <label for="companyIndustry">{{ t('home.industry_label') }}</label>
       <select id="companyIndustry" name="industry" required>
-        <option value="" disabled {{ 'selected' if not industry else '' }}>Выберите сферу…</option>
+        <option value="" disabled {{ 'selected' if not industry else '' }}>{{ t('home.industry_choose') }}</option>
         {% for key, label in industries %}
-        <option value="{{ key }}" {{ 'selected' if industry == key else '' }}>{{ label }}</option>
+        <option value="{{ key }}" {{ 'selected' if industry == key else '' }}>{{ t(label) }}</option>
         {% endfor %}
       </select>
-      <p class="field__hint">Подберём типовые должности и подразделения для этой сферы.</p>
+      <p class="field__hint">{{ t('home.industry_hint') }}</p>
     </div>
 
     <div class="field">
-      <label for="companyAdminRole">Кем вы являетесь в компании?</label>
+      <label for="companyAdminRole">{{ t('home.role_label') }}</label>
       <select id="companyAdminRole" name="admin_role" required>
-        <option value="" disabled {{ 'selected' if not admin_role else '' }}>Выберите роль…</option>
+        <option value="" disabled {{ 'selected' if not admin_role else '' }}>{{ t('home.role_choose') }}</option>
         {% for key, label in admin_roles %}
-        <option value="{{ key }}" {{ 'selected' if admin_role == key else '' }}>{{ label }}</option>
+        <option value="{{ key }}" {{ 'selected' if admin_role == key else '' }}>{{ t(label) }}</option>
         {% endfor %}
       </select>
     </div>
 
-    <button class="btn btn--primary" type="submit" data-tour="add">Сохранить и продолжить</button>
+    <button class="btn btn--primary" type="submit" data-tour="add">{{ t('home.submit') }}</button>
   </form>
 </div>
 {% endblock %}

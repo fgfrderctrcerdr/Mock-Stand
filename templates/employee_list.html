@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Сотрудники</h1>
-  <p class="page__subtitle">Свяжите сотрудника с подразделением, должностью, графиком и телефоном — без этого он не сможет отметить приход и получить приглашение.</p>
+  <h1 class="page__title">{{ t('emp_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('emp_page.subtitle') }}</p>
 
   <table class="datatable">
-    <thead><tr><th>ФИО</th><th>Подразделение</th><th>Должность</th><th>График</th><th>Локация</th><th></th></tr></thead>
+    <thead><tr><th>{{ t('emp_page.fio_col') }}</th><th>{{ t('emp_page.division_col') }}</th><th>{{ t('emp_page.position_col') }}</th><th>{{ t('emp_page.schedule_col') }}</th><th>{{ t('emp_page.location_col') }}</th><th></th></tr></thead>
     <tbody>
       {% for e in employees %}
       <tr data-row-id="{{ e.id }}">
@@ -22,43 +22,43 @@
               {{ l.name }}
             </label>
             {% else %}
-            <span class="ovp__empty-note">Локаций пока нет</span>
+            <span class="ovp__empty-note">{{ t('emp_page.no_locations') }}</span>
             {% endfor %}
           </div>
         </td>
         <td>
           <form method="post" action="/vhr/href/employee/{{ e.id }}/delete" style="display:inline"
-                data-confirm="Удалить сотрудника «{{ e.full_name }}»?">
-            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
+                data-confirm="{{ t('emp_page.delete_confirm', name=e.full_name) }}">
+            <button class="btn btn--danger btn--sm" type="submit">{{ t('common.delete') }}</button>
           </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="datatable__empty">Пока не добавлено</td></tr>
+      <tr><td colspan="6" class="datatable__empty">{{ t('common.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   <form method="post" action="/vhr/href/employee/create" class="entity-form" id="employeeCreateForm">
-    <div class="field"><label for="empFullName">ФИО</label><input type="text" id="empFullName" name="full_name" required placeholder="Иванов Иван" /></div>
+    <div class="field"><label for="empFullName">{{ t('emp_page.fio_label') }}</label><input type="text" id="empFullName" name="full_name" required placeholder="{{ t('emp_page.fio_placeholder') }}" /></div>
     <div class="field-row">
-      <div class="field"><label for="empDivision">Подразделение</label>
+      <div class="field"><label for="empDivision">{{ t('emp_page.division_label') }}</label>
         <select id="empDivision" name="division_id" required><option value="">—</option>{% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label for="empPosition">Должность</label>
+      <div class="field"><label for="empPosition">{{ t('emp_page.position_label') }}</label>
         <select id="empPosition" name="position_id" required><option value="">—</option>{% for p in positions %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
       </div>
     </div>
     <div class="field-row">
-      <div class="field"><label for="empSchedule">График</label>
+      <div class="field"><label for="empSchedule">{{ t('emp_page.schedule_label') }}</label>
         <select id="empSchedule" name="schedule_id" required><option value="">—</option>{% for s in schedules %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
       </div>
-      <div class="field"><label for="empPhone">Номер телефона</label>
-        <input type="tel" id="empPhone" name="phone" required placeholder="+998 90 123 45 67" />
+      <div class="field"><label for="empPhone">{{ t('emp_page.phone_label') }}</label>
+        <input type="tel" id="empPhone" name="phone" required placeholder="{{ t('emp_page.phone_placeholder') }}" />
       </div>
     </div>
-    <p class="field__hint">Локацию (можно несколько) прикрепите после создания — перетащите сотрудника на неё в панели справа, или выберите в списке выше.</p>
-    <button class="btn btn--primary" type="submit" data-tour="add" id="employeeSubmitBtn">+ Добавить сотрудника</button>
+    <p class="field__hint">{{ t('emp_page.location_hint') }}</p>
+    <button class="btn btn--primary" type="submit" data-tour="add" id="employeeSubmitBtn">{{ t('emp_page.submit') }}</button>
   </form>
 </div>
 
@@ -101,8 +101,8 @@
         group.querySelectorAll('input[type="checkbox"]:checked').forEach(function (c) { body.append('location_ids', c.value); });
         fetch('/vhr/href/employee/' + group.dataset.employeeId + '/sync_locations', { method: 'POST', body: body })
           .then(function (r) { return r.json(); })
-          .then(function (data) { if (data.ok) location.reload(); else alert(data.error || 'Не удалось сохранить локации'); })
-          .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+          .then(function (data) { if (data.ok) location.reload(); else alert(data.error || {{ t('emp_page.sync_error') | tojson }}); })
+          .catch(function () { alert({{ t('common.save_error') | tojson }}); });
       });
     });
   });

@@ -1,13 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">{{ label }}</h1>
-  <p class="page__subtitle">{{ module_label }}</p>
+  <h1 class="page__title">{{ t(label) }}</h1>
+  <p class="page__subtitle">{{ t(module_label) }}</p>
   <div class="stub-box">
-    <p>Этот раздел — навигационная заглушка мок-стенда: показывает, что в
-    реальном Verifix здесь есть отдельный экран, но функциональность
-    сюда не переносилась (она не нужна для сценариев, которые
-    отрабатывает этот тур).</p>
+    <p>{{ t('stub.text') }}</p>
   </div>
 </div>
 {% endblock %}

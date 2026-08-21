@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Пользователи</h1>
-  <p class="page__subtitle">Приглашение сотрудника в приложение отметок — как в реальном Verifix
-    (Настройки → Администрирование → Пользователи → тумблер «Телефон + invite»).</p>
+  <h1 class="page__title">{{ t('users_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('users_page.subtitle') }}</p>
 
   <table class="datatable">
-    <thead><tr><th>ФИО</th><th>Телефон</th><th>Статус</th></tr></thead>
+    <thead><tr><th>{{ t('emp_page.fio_col') }}</th><th>{{ t('users_page.phone_col') }}</th><th>{{ t('users_page.status_col') }}</th></tr></thead>
     <tbody>
       {% for e in employees %}
       <tr data-row-id="{{ e.id }}">
@@ -14,11 +13,11 @@
         <td>
           {% if e.invite_status == 'none' %}
           <form method="post" action="/vhr/admin/users/{{ e.id }}/invite" style="display:flex;gap:6px;" class="invite-form">
-            <input type="tel" name="phone" id="phone-{{ e.id }}" aria-label="Телефон сотрудника {{ e.full_name }}"
+            <input type="tel" name="phone" id="phone-{{ e.id }}" aria-label="{{ t('users_page.phone_aria', name=e.full_name) }}"
                    value="{{ e.phone or '' }}" placeholder="+998 90 123 45 67" required
                    style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;" />
             <button class="btn btn--primary btn--sm invite-submit" type="submit" data-tour="add"
-                    title="Заполните телефон, чтобы отправить приглашение">Пригласить</button>
+                    title="{{ t('users_page.invite_title') }}">{{ t('users_page.invite_btn') }}</button>
           </form>
           {% else %}
           {{ e.phone }}
@@ -30,19 +29,19 @@
              invited/active показываем одинаково, различие больше ничего
              не решает (см. main.py has_uninvited_employees). #}
           {% if e.invite_status == 'none' %}
-            <span class="status-pill status-pill--muted">Не приглашён</span>
+            <span class="status-pill status-pill--muted">{{ t('users_page.status_none') }}</span>
           {% else %}
-            <span class="status-pill status-pill--ok">Приглашён</span>
+            <span class="status-pill status-pill--ok">{{ t('users_page.status_invited') }}</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="3" class="datatable__empty">Сначала добавьте сотрудников в разделе «Кадры → Сотрудники»</td></tr>
+      <tr><td colspan="3" class="datatable__empty">{{ t('users_page.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <p class="field__hint">Сотрудник получает SMS и сам подтверждает приглашение в приложении.</p>
+  <p class="field__hint">{{ t('users_page.hint') }}</p>
 </div>
 
 <script>

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Подразделения</h1>
-  <p class="page__subtitle">Можно вкладывать подразделения друг в друга — просто перетащите строку на другую.</p>
+  <h1 class="page__title">{{ t('div_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('div_page.subtitle') }}</p>
 
   <div class="tree" id="divTree">
-    <div class="tree-root-zone" data-root="1">↥ сделать верхним уровнем</div>
+    <div class="tree-root-zone" data-root="1">{{ t('div_page.make_root') }}</div>
     {% for d, depth in ordered %}
     <div class="tree-node" draggable="true" data-row-id="{{ d.id }}" style="margin-left:{{ depth * 26 }}px">
       <span class="tree-node__grip">⠿</span>
       <span class="tree-node__name">{{ d.name }}</span>
-      <label class="tree-node__parent-label" for="parent-select-{{ d.id }}">Родитель:</label>
+      <label class="tree-node__parent-label" for="parent-select-{{ d.id }}">{{ t('div_page.parent_label') }}</label>
       <select class="tree-node__parent-select" id="parent-select-{{ d.id }}" data-row-id="{{ d.id }}"
-              aria-label="Родительское подразделение для «{{ d.name }}» (альтернатива drag-and-drop)">
-        <option value="" {{ 'selected' if not d.parent_id else '' }}>— верхний уровень —</option>
+              aria-label="{{ t('div_page.parent_aria', name=d.name) }}">
+        <option value="" {{ 'selected' if not d.parent_id else '' }}>{{ t('common.top_level_option') }}</option>
         {% for other in divisions %}
         {% if other.id != d.id %}
         <option value="{{ other.id }}" {{ 'selected' if d.parent_id == other.id else '' }}>{{ other.name }}</option>
@@ -21,19 +21,19 @@
         {% endfor %}
       </select>
       <form method="post" action="/vhr/hrm/division_list/{{ d.id }}/delete" style="display:inline"
-            data-confirm="Удалить «{{ d.name }}»? Дочерние подразделения (если есть) будут перепривязаны на уровень выше.">
-        <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
+            data-confirm="{{ t('div_page.delete_confirm', name=d.name) }}">
+        <button class="btn btn--danger btn--sm" type="submit">{{ t('common.delete') }}</button>
       </form>
     </div>
     {% else %}
-    <p class="datatable__empty">Пока не добавлено</p>
+    <p class="datatable__empty">{{ t('div_page.empty') }}</p>
     {% endfor %}
   </div>
-  <p class="field__hint">Перетащите строку на другую мышью — или выберите родителя в списке рядом (клавиатурная альтернатива drag-and-drop).</p>
+  <p class="field__hint">{{ t('div_page.dnd_hint') }}</p>
 
   {% if suggestions %}
   <div class="suggestions">
-    <span class="suggestions__label">Типовые для вашей сферы:</span>
+    <span class="suggestions__label">{{ t('div_page.suggestions_label') }}</span>
     {% for s in suggestions %}
     <form method="post" action="/vhr/hrm/division_list/create" style="display:inline">
       <input type="hidden" name="name" value="{{ s }}" />
@@ -46,19 +46,19 @@
 
   <form method="post" action="/vhr/hrm/division_list/create" class="entity-form">
     <div class="field">
-      <label for="divName">Как называется ваш отдел</label>
-      <input type="text" id="divName" name="name" required placeholder="Кухня" />
+      <label for="divName">{{ t('div_page.name_label') }}</label>
+      <input type="text" id="divName" name="name" required placeholder="{{ t('div_page.name_placeholder') }}" />
     </div>
     <div class="field">
-      <label for="divParent">Какому отделу он подчиняется (опционально)</label>
+      <label for="divParent">{{ t('div_page.parent_field_label') }}</label>
       <select id="divParent" name="parent_id">
-        <option value="">— верхний уровень —</option>
+        <option value="">{{ t('common.top_level_option') }}</option>
         {% for d in divisions %}
         <option value="{{ d.id }}">{{ d.name }}</option>
         {% endfor %}
       </select>
     </div>
-    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить подразделение</button>
+    <button class="btn btn--primary" type="submit" data-tour="add">{{ t('div_page.submit') }}</button>
   </form>
 </div>
 
@@ -75,9 +75,9 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.ok) location.reload();
-        else alert(data.error || 'Не удалось перенести подразделение');
+        else alert(data.error || {{ t('div_page.reparent_error') | tojson }});
       })
-      .catch(function () { alert('Не удалось сохранить — проверьте соединение и попробуйте снова.'); });
+      .catch(function () { alert({{ t('common.save_error') | tojson }}); });
   }
 
   tree.querySelectorAll('.tree-node').forEach(function (node) {

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page page--full">
-  <h1 class="page__title">Отчёт по посещениям</h1>
-  <p class="page__subtitle">Период: {{ period_start.strftime('%d.%m.%Y') }} – {{ period_end.strftime('%d.%m.%Y') }}. Показаны только реальные отметки — если их ещё не было, ячейки пустые, это нормально.</p>
+  <h1 class="page__title">{{ t('rep_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('rep_page.period', start=period_start.strftime('%d.%m.%Y'), end=period_end.strftime('%d.%m.%Y')) }}</p>
 
   <div class="timesheet-scroll">
     <table class="datatable timesheet-table">
       <thead>
         <tr>
-          <th class="timesheet-fio-col">ФИО</th>
-          <th>Подразделение</th>
+          <th class="timesheet-fio-col">{{ t('emp_page.fio_col') }}</th>
+          <th>{{ t('emp_page.division_col') }}</th>
           {% for d in period_days %}
           <th class="timesheet-day-head">{{ '%02d' % d.day }}</th>
           {% endfor %}
-          <th>Итого</th>
+          <th>{{ t('rep_page.total_col') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -23,13 +23,13 @@
           <td>{{ row.division_name }}</td>
           {% for cell in row.days %}
           <td class="timesheet-cell {{ 'timesheet-cell--off' if not cell.is_workday else '' }}">
-            {% if not cell.is_workday %}В{% elif cell.hours %}{{ cell.hours }}ч{% else %}—{% endif %}
+            {% if not cell.is_workday %}{{ t('rep_page.day_off') }}{% elif cell.hours %}{{ cell.hours }}{{ t('rep_page.hour_suffix') }}{% else %}—{% endif %}
           </td>
           {% endfor %}
-          <td class="timesheet-total"><b>{{ row.total_hours }}ч</b></td>
+          <td class="timesheet-total"><b>{{ row.total_hours }}{{ t('rep_page.hour_suffix') }}</b></td>
         </tr>
         {% else %}
-        <tr><td colspan="{{ 3 + period_days|length }}" class="datatable__empty">Сотрудников пока нет</td></tr>
+        <tr><td colspan="{{ 3 + period_days|length }}" class="datatable__empty">{{ t('rep_page.empty') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

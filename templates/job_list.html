@@ -1,31 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Должности</h1>
-  <p class="page__subtitle">Кем работает сотрудник (Официант, Повар, Бариста…).</p>
+  <h1 class="page__title">{{ t('job_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('job_page.subtitle') }}</p>
 
   <table class="datatable">
-    <thead><tr><th>Название</th><th></th></tr></thead>
+    <thead><tr><th>{{ t('common.name_col') }}</th><th></th></tr></thead>
     <tbody>
       {% for p in positions %}
       <tr data-row-id="{{ p.id }}">
         <td>{{ p.name }}</td>
         <td>
           <form method="post" action="/vhr/hrm/job_list/{{ p.id }}/delete" style="display:inline"
-                data-confirm="Удалить должность «{{ p.name }}»?">
-            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
+                data-confirm="{{ t('job_page.delete_confirm', name=p.name) }}">
+            <button class="btn btn--danger btn--sm" type="submit">{{ t('common.delete') }}</button>
           </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="2" class="datatable__empty">Пока не добавлено</td></tr>
+      <tr><td colspan="2" class="datatable__empty">{{ t('common.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   {% if suggestions %}
   <div class="suggestions">
-    <span class="suggestions__label">Типовые для вашей сферы:</span>
+    <span class="suggestions__label">{{ t('common.suggestions_label') }}</span>
     {% for s in suggestions %}
     <form method="post" action="/vhr/hrm/job_list/create" style="display:inline">
       <input type="hidden" name="name" value="{{ s }}" />
@@ -37,10 +37,10 @@
 
   <form method="post" action="/vhr/hrm/job_list/create" class="entity-form">
     <div class="field">
-      <label for="jobName">Название должности</label>
-      <input type="text" id="jobName" name="name" required placeholder="Официант" />
+      <label for="jobName">{{ t('job_page.name_label') }}</label>
+      <input type="text" id="jobName" name="name" required placeholder="{{ t('job_page.name_placeholder') }}" />
     </div>
-    <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить должность</button>
+    <button class="btn btn--primary" type="submit" data-tour="add">{{ t('job_page.submit') }}</button>
   </form>
 </div>
 {% endblock %}

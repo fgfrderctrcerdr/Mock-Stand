@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ page_title }} — Verifix Mock-Stand</title>
+  <title>{{ t(page_title) }} — Verifix Mock-Stand</title>
   <link rel="stylesheet" href="/static/css/styles.css" />
   <link rel="stylesheet" href="/static/tour/verifix-tour.css" />
 </head>
@@ -24,13 +24,13 @@
     <nav class="topnav">
       {% for section in menu %}
       <div class="topnav__item {{ 'is-active-section' if section.label == current_section }}">
-        <button type="button" class="topnav__label" aria-expanded="false">{{ section.label }}</button>
+        <button type="button" class="topnav__label" aria-expanded="false">{{ t(section.label) }}</button>
         <div class="topnav__dropdown {{ 'topnav__dropdown--cols' if section.columns|length > 1 else '' }}">
           {% for col in section.columns %}
           <div class="topnav__col">
-            {% if col.title %}<div class="topnav__col-title">{{ col.title }}</div>{% endif %}
+            {% if col.title %}<div class="topnav__col-title">{{ t(col.title) }}</div>{% endif %}
             {% for path, label, functional in col.links %}
-            <a href="{{ path }}" class="topnav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">{{ label }}</a>
+            <a href="{{ path }}" class="topnav__link {{ 'is-active' if path == current_path else '' }} {{ '' if functional else 'is-stub' }}">{{ t(label) }}</a>
             {% endfor %}
           </div>
           {% endfor %}
@@ -40,7 +40,14 @@
     </nav>
 
     <div class="topbar__right">
-      <button type="button" id="resetAllBtn" class="topbar__reset" title="Удалить все данные этой песочницы и начать заново">↺ Начать с начала</button>
+      <!-- Переключатель языка (запрос Vladimir) — обычная навигационная
+           ссылка (не JS), работает и без скриптов: смена cookie + редирект
+           обратно на ту же страницу (см. /set-lang/{lang} в main.py). -->
+      <div class="lang-switch">
+        <a href="/set-lang/ru" class="lang-switch__btn {{ 'is-active' if lang == 'ru' else '' }}">{{ t('lang.switch_ru') }}</a>
+        <a href="/set-lang/uz" class="lang-switch__btn {{ 'is-active' if lang == 'uz' else '' }}">{{ t('lang.switch_uz') }}</a>
+      </div>
+      <button type="button" id="resetAllBtn" class="topbar__reset" title="{{ t('tour.start_over') }}">{{ t('tour.start_over') }}</button>
       <span class="topbar__mock-badge" title="Это учебная копия, не настоящий Verifix">MOCK</span>
       <span class="topbar__org">{{ org_id[:8] }}…</span>
     </div>
@@ -319,7 +326,7 @@
     var resetBtn = document.getElementById('resetAllBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', function () {
-        if (!window.confirm('Удалить все данные этой песочницы (подразделения, сотрудников и т.д.) и начать настройку с первого шага?')) return;
+        if (!window.confirm(window.VERIFIX_I18N['tour.start_over_confirm'] || 'Удалить все данные этой песочницы (подразделения, сотрудников и т.д.) и начать настройку с первого шага?')) return;
         try {
           localStorage.removeItem('verifix_tour_progress');
           localStorage.removeItem('verifix_tour_progress_intro_seen');
@@ -329,16 +336,23 @@
     }
   </script>
 
+  <script>
+    // Локализация (запрос Vladimir) — словарь ТЕКУЩЕГО языка целиком,
+    // читают verifix-tour.js/steps.js через t(key, fallback).
+    window.VERIFIX_LANG = {{ lang | tojson }};
+    window.VERIFIX_I18N = {{ i18n_json | tojson }};
+  </script>
+
   <script src="/static/tour/verifix-tour.js"></script>
   <script src="/static/tour/steps.js"></script>
   <script>
     VerifixTour.start(VERIFIX_TOUR_STEPS, {
-      title: 'Настройка Verifix',
-      doneText: 'Структура готова, и первый отчёт по отработанным часам уже строится.',
+      title: {{ t('tour.title') | tojson }},
+      doneText: {{ t('tour.done') | tojson }},
       intro: {
-        title: 'Добро пожаловать в песочницу Verifix',
-        text: 'Это учебная копия интерфейса — здесь можно потренироваться в настройке без риска сломать боевые данные. Начнём с пары вопросов о компании, а дальше проведём по шагам: от подразделений до первого отчёта по отработанным часам.',
-        cta: 'Начать настройку',
+        title: {{ t('intro.title') | tojson }},
+        text: {{ t('intro.text') | tojson }},
+        cta: {{ t('intro.cta') | tojson }},
       },
     });
   </script>

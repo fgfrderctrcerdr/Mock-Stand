@@ -1,56 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page">
-  <h1 class="page__title">Графики работы</h1>
-  <p class="page__subtitle">Правила рабочего времени, которые назначаются сотрудникам.</p>
+  <h1 class="page__title">{{ t('sch_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('sch_page.subtitle') }}</p>
 
   <table class="datatable">
-    <thead><tr><th>Название</th><th>Вид</th><th>Детали</th><th></th></tr></thead>
+    <thead><tr><th>{{ t('common.name_col') }}</th><th>{{ t('sch_page.kind_col') }}</th><th>{{ t('sch_page.details_col') }}</th><th></th></tr></thead>
     <tbody>
       {% for s in schedules %}
       <tr data-row-id="{{ s.id }}">
         <td>{{ s.name }}</td>
-        <td>{{ 'Обычный' if s.kind == 'regular' else 'Почасовой' }}</td>
+        <td>{{ t('sch_page.kind_regular') if s.kind == 'regular' else t('sch_page.kind_hourly') }}</td>
         <td>
           {% if s.kind == 'regular' %}
-            {{ s.start_time }}–{{ s.end_time }}, {{ s.week_days|length }} дн/нед
+            {{ s.start_time }}–{{ s.end_time }}, {{ t('sch_page.days_per_week', days=s.week_days|length) }}
           {% else %}
-            норма {{ s.norm_hours }} ч
+            {{ t('sch_page.norm_label', hours=s.norm_hours) }}
           {% endif %}
         </td>
         <td>
           <form method="post" action="/vhr/htt/schedule_list/{{ s.id }}/delete" style="display:inline"
-                data-confirm="Удалить график «{{ s.name }}»?">
-            <button class="btn btn--danger btn--sm" type="submit">Удалить</button>
+                data-confirm="{{ t('sch_page.delete_confirm', name=s.name) }}">
+            <button class="btn btn--danger btn--sm" type="submit">{{ t('common.delete') }}</button>
           </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="datatable__empty">Пока не добавлено</td></tr>
+      <tr><td colspan="4" class="datatable__empty">{{ t('common.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   <div class="entity-form">
     <div class="field">
-      <label>Шаблон</label>
+      <label>{{ t('sch_page.template_label') }}</label>
       <div class="template-row">
-        <button type="button" class="btn btn--tpl is-active" data-tpl="5-2">Пятидневка (5/2, 9:00–18:00)</button>
-        <button type="button" class="btn btn--tpl" data-tpl="6-1">Шестидневка (6/1, 9:00–18:00)</button>
-        <button type="button" class="btn btn--tpl" data-tpl="hourly12">Почасовой (норма 12 ч)</button>
-        <button type="button" class="btn btn--tpl" data-tpl="custom">Кастомный</button>
+        <button type="button" class="btn btn--tpl is-active" data-tpl="5-2">{{ t('sch_page.tpl_5_2') }}</button>
+        <button type="button" class="btn btn--tpl" data-tpl="6-1">{{ t('sch_page.tpl_6_1') }}</button>
+        <button type="button" class="btn btn--tpl" data-tpl="hourly12">{{ t('sch_page.tpl_hourly') }}</button>
+        <button type="button" class="btn btn--tpl" data-tpl="custom">{{ t('sch_page.tpl_custom') }}</button>
       </div>
     </div>
 
     <form method="post" action="/vhr/htt/schedule_list/create" id="scheduleForm">
-      <div class="field"><label for="schName">Название графика</label><input type="text" id="schName" name="name" required placeholder="Дневная смена 9–18" /></div>
+      <div class="field"><label for="schName">{{ t('sch_page.name_label') }}</label><input type="text" id="schName" name="name" required placeholder="{{ t('sch_page.name_placeholder') }}" /></div>
       <input type="hidden" name="kind" id="kindInput" value="regular" />
 
       <div class="field-row" id="weekDaysField">
         <fieldset class="field">
-          <legend>Рабочие дни</legend>
+          <legend>{{ t('sch_page.workdays_legend') }}</legend>
           <div class="weekday-picker" id="weekdayPicker">
-            {% for i, wd in [(1,'Пн'),(2,'Вт'),(3,'Ср'),(4,'Чт'),(5,'Пт'),(6,'Сб'),(7,'Вс')] %}
+            {% for i, wd in [(1,t('weekday.mon')),(2,t('weekday.tue')),(3,t('weekday.wed')),(4,t('weekday.thu')),(5,t('weekday.fri')),(6,t('weekday.sat')),(7,t('weekday.sun'))] %}
             <label class="weekday-chip"><input type="checkbox" name="week_days" value="{{ i }}" {{ 'checked' if i <= 5 else '' }} />{{ wd }}</label>
             {% endfor %}
           </div>
@@ -58,16 +58,16 @@
       </div>
 
       <div class="field-row" id="timeFields">
-        <div class="field"><label for="startTime">Начало</label><input type="time" name="start_time" id="startTime" value="09:00" /></div>
-        <div class="field"><label for="endTime">Конец</label><input type="time" name="end_time" id="endTime" value="18:00" /></div>
+        <div class="field"><label for="startTime">{{ t('sch_page.start_label') }}</label><input type="time" name="start_time" id="startTime" value="09:00" /></div>
+        <div class="field"><label for="endTime">{{ t('sch_page.end_label') }}</label><input type="time" name="end_time" id="endTime" value="18:00" /></div>
       </div>
 
       <div class="field" id="normField" style="display:none">
-        <label for="normHours">Норма часов</label>
+        <label for="normHours">{{ t('sch_page.norm_hours_label') }}</label>
         <input type="number" step="0.5" min="0.5" name="norm_hours" id="normHours" value="12" />
       </div>
 
-      <button class="btn btn--primary" type="submit" data-tour="add">+ Добавить график</button>
+      <button class="btn btn--primary" type="submit" data-tour="add">{{ t('sch_page.submit') }}</button>
     </form>
   </div>
 </div>

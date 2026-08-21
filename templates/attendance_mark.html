@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page page--full">
-  <h1 class="page__title">Отметки</h1>
-  <p class="page__subtitle">Список отметок прихода/ухода — как в реальном Verifix, это просмотровая страница: отметки приходят от устройств/приложения, здесь их вручную не создают.</p>
+  <h1 class="page__title">{{ t('am_page.title') }}</h1>
+  <p class="page__subtitle">{{ t('am_page.subtitle') }}</p>
 
   <table class="datatable">
     <thead>
       <tr>
-        <th>Физическое лицо</th>
-        <th>Локация</th>
-        <th>Тип отметки</th>
-        <th>Дата создания</th>
+        <th>{{ t('am_page.person_col') }}</th>
+        <th>{{ t('am_page.location_col') }}</th>
+        <th>{{ t('am_page.kind_col') }}</th>
+        <th>{{ t('am_page.date_col') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -18,11 +18,11 @@
       <tr data-row-id="{{ ev.id }}">
         <td>{{ name_by_id(all_employees, ev.employee_id) }}</td>
         <td>{{ name_by_id(locations, ev.location_id) if locations else '—' }}</td>
-        <td>{{ 'Приход' if ev.kind == 'in' else 'Уход' }}</td>
+        <td>{{ t('am_page.kind_in') if ev.kind == 'in' else t('am_page.kind_out') }}</td>
         <td>{{ to_local(ev.marked_at).strftime('%d.%m.%Y %H:%M') }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="datatable__empty">Отметок пока нет — они появятся здесь, когда сотрудники начнут отмечаться в приложении Verifix ID.</td></tr>
+      <tr><td colspan="4" class="datatable__empty">{{ t('am_page.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

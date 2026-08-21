@@ -404,3 +404,12 @@ fieldset.field legend { display: block; font-size: 13px; font-weight: 600; margi
 .timesheet-cell { text-align: center; font-size: 12px; padding: 6px 4px; }
 .timesheet-cell--off { background: #e0f2fe; color: #0369a1; font-weight: 600; }
 .timesheet-total { text-align: center; background: var(--surface-2); }
+
+/* Переключатель языка ru/uz (запрос Vladimir) — простые ссылки в шапке. */
+.lang-switch { display: flex; gap: 2px; background: rgba(255,255,255,0.08); border-radius: 6px; padding: 2px; }
+.lang-switch__btn {
+  font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 5px; color: #94a3b8;
+  text-decoration: none; font-family: var(--font);
+}
+.lang-switch__btn.is-active { background: #fff; color: #111827; }
+.lang-switch__btn:hover:not(.is-active) { color: #fff; }
